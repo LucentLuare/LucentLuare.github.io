@@ -15,11 +15,9 @@
       height: 100vh; max-height: 177.78vw;
       background: #0b0b16; display: flex; flex-direction: column; border: 2px solid #333;
     }
-    /* 상단 플레이 화면 (조작부 바로 위까지 100% 활용) */
     #play-area { flex: 68; position: relative; width: 100%; overflow: hidden; }
     canvas { width: 100%; height: 100%; display: block; }
     
-    /* 하단 컨트롤러 영역 */
     #controller-area {
       flex: 32; background: #16213e; display: flex; flex-direction: column; padding: 6px; gap: 6px;
       border-top: 2px solid #e94560;
@@ -93,6 +91,9 @@
   let lastTouchX = 0;
   const SLIDER_SENSITIVITY = 1.25;
 
+  // 노트 속도 조절 전용 변수
+  const NOTE_SPEED = 0.0055; 
+
   // 슬라이더 조작
   sliderTrack.addEventListener('pointerdown', (e) => {
     if (sliderPointerId === null) {
@@ -121,30 +122,27 @@
   sliderTrack.addEventListener('pointercancel', endSliderTouch);
 
   buttons.forEach(btn => {
-    btn.addEventListener('pointerdown', (e) => {
-      btn.classList.add('active');
-    });
+    btn.addEventListener('pointerdown', () => btn.classList.add('active'));
     const release = () => btn.classList.remove('active');
     btn.addEventListener('pointerup', release);
     btn.addEventListener('pointerleave', release);
     btn.addEventListener('pointercancel', release);
   });
 
-  // 테스트용 벽돌 노트 데이터 (progress: 0.0(최상단) ~ 1.0(판정선))
+  // 테스트용 벽돌 노트 데이터
   let testBricks = [
-    { progress: 0.1, lane: 1, color: '#2ed573' }, // 그린
-    { progress: 0.4, lane: 0, color: '#ff4757' }, // 레드
-    { progress: 0.7, lane: 2, color: '#1e90ff' }  // 블루
+    { progress: 0.1, lane: 1, color: '#2ed573' }, 
+    { progress: 0.4, lane: 0, color: '#ff4757' }, 
+    { progress: 0.7, lane: 2, color: '#1e90ff' }  
   ];
 
   function loop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // 1. 트랙 설정 (화면 맨 위 0부터 판정선까지 풀로 확장)
     const topY = 0;
-    const judgeY = canvas.height * 0.90;     // 판정선 위치 (조작부 바로 위)
-    const topWidth = canvas.width * 0.20;    // 최상단 트랙 너비 (좁음)
-    const bottomWidth = canvas.width * 0.80; // 판정선 트랙 너비 (넓음)
+    const judgeY = canvas.height * 0.90;     
+    const topWidth = canvas.width * 0.20;    
+    const bottomWidth = canvas.width * 0.80; 
     const centerX = canvas.width / 2;
 
     function getTrackMetrics(y) {
@@ -160,7 +158,7 @@
     const topM = getTrackMetrics(topY);
     const bottomM = getTrackMetrics(judgeY);
 
-    // 사다리꼴 트랙 배경
+    // 트랙 배경
     ctx.fillStyle = 'rgba(15, 15, 30, 0.85)';
     ctx.beginPath();
     ctx.moveTo(topM.left, topY);
@@ -170,7 +168,22 @@
     ctx.closePath();
     ctx.fill();
 
-    // 트랙 외곽 경계선 (사이드 라인)
+    // 트랙 내부 가로 격자선(그리드 라인)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1;
+    const gridCount = 10;
+    for (let i = 0; i <= gridCount; i++) {
+      let gridProg = (Date.now() * 0.0005 * (NOTE_SPEED * 200) + i / gridCount) % 1.0;
+      let gY = topY + (judgeY - topY) * gridProg;
+      let gm = getTrackMetrics(gY);
+      
+      ctx.beginPath();
+      ctx.moveTo(gm.left, gY);
+      ctx.lineTo(gm.right, gY);
+      ctx.stroke();
+    }
+
+    // 트랙 외곽 경계선
     ctx.strokeStyle = '#b53471';
     ctx.lineWidth = 2;
     ctx.beginPath();
@@ -180,13 +193,12 @@
     ctx.lineTo(bottomM.right, judgeY);
     ctx.stroke();
 
-    // 2. 벽돌(Brick) 노트 렌더링 (중앙 하얀색 라인 포함)
+    // 벽돌 노트 렌더링
     testBricks.forEach(brick => {
-      brick.progress += 0.006; // 낙하 속도
+      brick.progress += NOTE_SPEED; 
       if (brick.progress > 1.0) brick.progress = 0.0;
 
-      // 노트의 앞뒤 Y 좌표 계산 (벽돌 두께감 부여)
-      const brickHeight = 18; // 벽돌 세로 두께
+      const brickHeight = 18; 
       const currentY = topY + (judgeY - topY) * brick.progress;
       
       const mFront = getTrackMetrics(currentY);
@@ -195,7 +207,6 @@
       const laneWidthFront = mFront.width / 3;
       const laneWidthBack = mBack.width / 3;
 
-      // 해당 레인의 좌우 좌표
       const x1 = mBack.left + laneWidthBack * brick.lane + 2;
       const x2 = mBack.left + laneWidthBack * (brick.lane + 1) - 2;
       const x3 = mFront.left + laneWidthFront * (brick.lane + 1) - 2;
@@ -203,7 +214,7 @@
       const y1 = currentY - brickHeight;
       const y2 = currentY;
 
-      // 벽돌 본체 채우기
+      // 벽돌 본체
       ctx.fillStyle = brick.color;
       ctx.beginPath();
       ctx.moveTo(x1, y1);
@@ -218,18 +229,20 @@
       ctx.lineWidth = 1;
       ctx.stroke();
 
-      // ★ 노트 중앙의 하얀색 하이라이트 라인 (온게키 스타일 포인트)
-      const midX1 = (x1 + x2) / 2;
-      const midX2 = (x4 + x3) / 2;
+      // ★ 노트 중앙의 수평(가로) 하얀색 하이라이트 라인 (온게키 스타일)
+      const halfY = y1 + (y2 - y1) * 0.5;
+      const leftMidX = (x1 + x4) / 2;
+      const rightMidX = (x2 + x3) / 2;
+      
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      ctx.moveTo(midX1 - 4, y1 + (y2 - y1) * 0.3);
-      ctx.lineTo(midX2 - 6, y1 + (y2 - y1) * 0.7);
+      ctx.moveTo(leftMidX + 3, halfY);
+      ctx.lineTo(rightMidX - 3, halfY);
       ctx.stroke();
     });
 
-    // 3. 판정선 붉은색 라인
+    // 판정선
     ctx.strokeStyle = '#e94560';
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -237,14 +250,13 @@
     ctx.lineTo(bottomM.right, judgeY);
     ctx.stroke();
 
-    // 4. 캐릭터 (아바타)
+    // 캐릭터
     const charX = playerX * canvas.width;
     ctx.fillStyle = '#00ffcc';
     ctx.beginPath();
     ctx.arc(charX, judgeY, 16, 0, Math.PI * 2);
     ctx.fill();
 
-    // 피격 히트박스
     ctx.fillStyle = '#ff0000';
     ctx.beginPath();
     ctx.arc(charX, judgeY, 5, 0, Math.PI * 2);
