@@ -91,8 +91,8 @@
   let lastTouchX = 0;
   const SLIDER_SENSITIVITY = 1.25;
 
-  // ★ 시간 기반 독립 노트 속도 (값이 클수록 빠르게 떨어짐, 예: 0.35 = 최상단에서 판정선까지 약 2.8초)
-  const NOTE_SPEED = 0.35; 
+  // ★ 노트 낙하 속도 (픽셀/초 단위: 숫자를 키우면 더 빨라집니다)
+  const NOTE_SPEED_PX = 550; 
   let lastTime = performance.now();
 
   // 슬라이더 조작
@@ -130,14 +130,14 @@
     btn.addEventListener('pointercancel', release);
   });
 
+  // 테스트용 노트 데이터 (y: 현재 Y픽셀 위치, lane: 0~2, color: 색상)
   let testBricks = [
-    { progress: 0.1, lane: 1, color: '#2ed573' }, 
-    { progress: 0.4, lane: 0, color: '#ff4757' }, 
-    { progress: 0.7, lane: 2, color: '#1e90ff' }  
+    { y: 50, lane: 1, color: '#2ed573' }, // 초록
+    { y: -250, lane: 0, color: '#ff4757' }, // 빨강
+    { y: -500, lane: 2, color: '#1e90ff' }  // 파랑
   ];
 
   function loop() {
-    // 델타 타임(Delta Time) 계산으로 터치나 프레임에 영향받지 않는 독립 속도 구현
     const currentTime = performance.now();
     const deltaTime = (currentTime - lastTime) / 1000;
     lastTime = currentTime;
@@ -164,7 +164,7 @@
     const bottomM = getTrackMetrics(judgeY);
 
     // 1. 트랙 배경
-    ctx.fillStyle = 'rgba(15, 15, 30, 0.85)';
+    ctx.fillStyle = 'rgba(12, 12, 24, 0.9)';
     ctx.beginPath();
     ctx.moveTo(topM.left, topY);
     ctx.lineTo(topM.right, topY);
@@ -173,16 +173,26 @@
     ctx.closePath();
     ctx.fill();
 
-    // 2. 3레인을 나누는 내부 가이드 선 2개 (세로선)
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-    ctx.lineWidth = 1.5;
-    for (let i = 1; i <= 2; i++) {
-      const ratio = i / 3;
+    // 2. 레인별 컬러 가이드 레일 (온게키 스타일 각 레인 하단 빛의 선)[span_1](start_span)[span_1](end_span)
+    const laneColors = ['#ff4757', '#2ed573', '#1e90ff']; // 0:레드, 1:그린, 2:블루
+    for (let i = 0; i < 3; i++) {
+      ctx.strokeStyle = laneColors[i];
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = laneColors[i]; // 네온사처럼 은은하게 빛나는 효과
+
+      // 각 레인의 중앙을 가로지르는 가이드 선
+      const topRatio1 = i / 3;
+      const topRatio2 = (i + 1) / 3;
+      const botRatio1 = i / 3;
+      const botRatio2 = (i + 1) / 3;
+
       ctx.beginPath();
-      ctx.moveTo(topM.left + topM.width * ratio, topY);
-      ctx.lineTo(bottomM.left + bottomM.width * ratio, judgeY);
+      ctx.moveTo(topM.left + topM.width * ((topRatio1 + topRatio2) / 2), topY);
+      ctx.lineTo(bottomM.left + bottomM.width * ((botRatio1 + botRatio2) / 2), judgeY);
       ctx.stroke();
     }
+    ctx.shadowBlur = 0; // 그림자 초기화
 
     // 트랙 외곽 경계선
     ctx.strokeStyle = '#b53471';
@@ -194,21 +204,21 @@
     ctx.lineTo(bottomM.right, judgeY);
     ctx.stroke();
 
-    // 3. 벽돌 노트 렌더링 (가로 크기 = 전체 트랙 너비의 1/8)
+    // 3. 픽셀 기반 등속 낙하 벽돌 노트 렌더링
     testBricks.forEach(brick => {
-      brick.progress += NOTE_SPEED * deltaTime; 
-      if (brick.progress > 1.0) brick.progress = 0.0;
+      // 프레임워크 독립적인 픽셀 단위 등속 이동
+      brick.y += NOTE_SPEED_PX * deltaTime; 
+      if (brick.y > judgeY + 30) {
+        brick.y = topY - 30; // 판정선을 지나치면 위쪽에서 다시 리셋
+      }
 
       const brickHeight = 20; 
-      const currentY = topY + (judgeY - topY) * brick.progress;
+      const currentY = brick.y;
       
       const m = getTrackMetrics(currentY);
       const laneWidth = m.width / 3;
       
-      // 해당 레인의 중앙 X 좌표
       const laneCenterX = m.left + laneWidth * brick.lane + laneWidth / 2;
-      
-      // 노트 가로 크기: 전체 트랙 너비(m.width)의 1/8
       const brickWidth = m.width / 8; 
 
       const x1 = laneCenterX - brickWidth / 2;
@@ -216,23 +226,26 @@
       const y1 = currentY - brickHeight;
       const y2 = currentY;
 
-      // 벽돌 본체
-      ctx.fillStyle = brick.color;
-      ctx.fillRect(x1, y1, brickWidth, brickHeight);
+      // 화면 영역(topY ~ judgeY) 안에 들어올 때만 그림
+      if (currentY >= topY - 50 && currentY <= judgeY + 50) {
+        // 벽돌 본체
+        ctx.fillStyle = brick.color;
+        ctx.fillRect(x1, y1, brickWidth, brickHeight);
 
-      // 벽돌 테두리
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x1, y1, brickWidth, brickHeight);
+        // 벽돌 테두리
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x1, y1, brickWidth, brickHeight);
 
-      // 노트 중앙의 수평(가로) 하얀색 하이라이트 라인
-      const halfY = y1 + brickHeight * 0.5;
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(x1 + 4, halfY);
-      ctx.lineTo(x2 - 4, halfY);
-      ctx.stroke();
+        // 노트 중앙의 수평(가로) 하얀색 하이라이트 라인
+        const halfY = y1 + brickHeight * 0.5;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(x1 + 4, halfY);
+        ctx.lineTo(x2 - 4, halfY);
+        ctx.stroke();
+      }
     });
 
     // 4. 판정선
