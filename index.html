@@ -139,7 +139,6 @@
   let noteSpeedMultiplier = 1.0;
   const BASE_NOTE_TRAVEL_TIME = 1.6;
 
-  // 판정 상수 (60fps 기준)
   const FRAME_MS = 1000 / 60;
   const HIT_WINDOW_MS = 8 * FRAME_MS;
   const EARLY_MISS_WINDOW_MS = 16 * FRAME_MS;
@@ -170,26 +169,62 @@
     return null;
   }
 
-  // ================= 시간축 기반 트랙(벽) 경계 변화 키프레임 =================
-  // 각 시간(t)에 판정선에 도달하는 지점의 좌/우 벽 위치 비율 (노트와 똑같이 위에서 아래로 내려오며 꺾임)
-  const fieldKeyframes = [
-    { t: 0,     clipL: 0.0,   clipR: 1.0 },
-    { t: 3800,  clipL: 0.0,   clipR: 1.0 },
-    { t: 4200,  clipL: 0.07,  clipR: 0.50 }, // 4.2초 지점부터 오른쪽 절반이 깎여 왼쪽 3레인만 남음
-    { t: 7800,  clipL: 0.07,  clipR: 0.50 },
-    { t: 8200,  clipL: 0.07,  clipR: 0.79 }, // 8.2초 지점부터 5레인 폭으로 확장
-    { t: 11500, clipL: 0.07,  clipR: 0.79 },
-    { t: 12000, clipL: 0.0,   clipR: 1.0 }
-  ];
+  // ================= JSON 형식의 채보 데이터 (Chart Data 파일 구조) =================
+  const chartData = {
+    bpm: 140,
+    loopTime: 12000,
+    // 레인 곡선 및 축소 이벤트 (시간에 따른 좌우 클립 영역)
+    fieldEvents: [
+      { t: 0,     clipL: 0.0,   clipR: 1.0 },
+      { t: 3800,  clipL: 0.0,   clipR: 1.0 },
+      { t: 4200,  clipL: 0.07,  clipR: 0.50 }, // 3레인 축소 구간
+      { t: 7800,  clipL: 0.07,  clipR: 0.50 },
+      { t: 8200,  clipL: 0.07,  clipR: 0.79 }, // 5레인 구간
+      { t: 11500, clipL: 0.07,  clipR: 0.79 },
+      { t: 12000, clipL: 0.0,   clipR: 1.0 }
+    ],
+    notes: [
+      { time: 800,  lane: 0, type: 'tap' },
+      { time: 1150, side: 'left', type: 'side' },
+      { time: 1500, lane: 2, type: 'flick', dir: 1 },
+      { time: 1900, side: 'right', type: 'sideHold', holdDuration: 900 },
+      { time: 2400, lane: 0, type: 'hold', holdDuration: 1200, waypoints: [
+        { offset: 0, lane: 0 },
+        { offset: 600, lane: 3 },
+        { offset: 1200, lane: 0 }
+      ]},
+      { time: 3000, lane: 5, type: 'tap' },
+      { time: 4500, lane: 0, type: 'tap' },
+      { time: 4800, lane: 1, type: 'tap' },
+      { time: 5100, lane: 2, type: 'tap' },
+      { time: 5400, side: 'right', type: 'sideHold', holdDuration: 1000 },
+      { time: 6000, lane: 1, type: 'hold', holdDuration: 1200, waypoints: [
+        { offset: 0, lane: 1 },
+        { offset: 400, lane: 2 },
+        { offset: 800, lane: 0 },
+        { offset: 1200, lane: 1 }
+      ]},
+      { time: 8500, lane: 0, type: 'tap' },
+      { time: 8500, lane: 3, type: 'tap' },
+      { time: 9100, lane: 2, type: 'flick', dir: -1 },
+      { time: 9600, side: 'left', type: 'side' },
+      { time: 10000, lane: 4, type: 'hold', holdDuration: 1100, waypoints: [
+        { offset: 0, lane: 4 },
+        { offset: 550, lane: 1 },
+        { offset: 1100, lane: 4 }
+      ]},
+      { time: 10500, lane: 0, type: 'tap' }
+    ]
+  };
 
-  // 특정 절대 시간(targetTime)에 판정선에 도달하는 트랙 단면의 좌/우 벽 비율 계산
   function getClipAtTime(targetTime) {
-    let cycleT = (targetTime - songStartTime) % 12000;
-    if (cycleT < 0) cycleT += 12000;
+    let cycleT = (targetTime - songStartTime) % chartData.loopTime;
+    if (cycleT < 0) cycleT += chartData.loopTime;
+    const events = chartData.fieldEvents;
 
-    for (let i = 0; i < fieldKeyframes.length - 1; i++) {
-      const k1 = fieldKeyframes[i];
-      const k2 = fieldKeyframes[i + 1];
+    for (let i = 0; i < events.length - 1; i++) {
+      const k1 = events[i];
+      const k2 = events[i + 1];
       if (cycleT >= k1.t && cycleT <= k2.t) {
         const ratio = (cycleT - k1.t) / (k2.t - k1.t);
         const smooth = ratio * ratio * (3 - 2 * ratio);
@@ -202,7 +237,6 @@
     return { clipL: 0.0, clipR: 1.0 };
   }
 
-  // Y좌표와 해당 Y좌표에 도달할 시간(timeAtY)을 받아 정확한 원근감 및 꺾인 벽 좌표를 반환
   function getTrackMetricsAt(y, timeAtY) {
     const topY = 0;
     const judgeY = canvas.height * 0.90;
@@ -226,60 +260,23 @@
       fullWidth,
       wallLeft,
       wallRight,
-      activeWidth: wallRight - wallLeft
+      activeWidth: wallRight - wallLeft,
+      clipL: clip.clipL,
+      clipR: clip.clipR
     };
   }
 
   let notes = [];
   let songStartTime = performance.now();
-  
-  const chartPattern = [
-    { time: 800,  lane: 0, type: 'tap' },
-    { time: 1150, side: 'left', type: 'side' },
-    { time: 1500, lane: 2, type: 'flick', dir: 1 },
-    { time: 1900, side: 'right', type: 'sideHold', holdDuration: 900 },
-    { time: 2400, lane: 0, type: 'hold', holdDuration: 1200, waypoints: [
-      { offset: 0, lane: 0 },
-      { offset: 600, lane: 3 },
-      { offset: 1200, lane: 0 }
-    ]},
-    { time: 3000, lane: 5, type: 'tap' },
-
-    // 4.2초부터 오른쪽 벽이 꺾여 들어오면서 3레인으로 축소되는 구간
-    { time: 4500, lane: 0, type: 'tap' },
-    { time: 4800, lane: 1, type: 'tap' },
-    { time: 5100, lane: 2, type: 'tap' },
-    { time: 5400, side: 'right', type: 'sideHold', holdDuration: 1000 }, // 꺾인 오른쪽 벽을 따라 내려오는 벽치기 롱노트
-    { time: 6000, lane: 1, type: 'hold', holdDuration: 1200, waypoints: [
-      { offset: 0, lane: 1 },
-      { offset: 400, lane: 2 },
-      { offset: 800, lane: 0 },
-      { offset: 1200, lane: 1 }
-    ]},
-
-    // 8.2초부터 5레인 구간
-    { time: 8500, lane: 0, type: 'tap' },
-    { time: 8500, lane: 3, type: 'tap' },
-    { time: 9100, lane: 2, type: 'flick', dir: -1 },
-    { time: 9600, side: 'left', type: 'side' },
-    { time: 10000, lane: 4, type: 'hold', holdDuration: 1100, waypoints: [
-      { offset: 0, lane: 4 },
-      { offset: 550, lane: 1 },
-      { offset: 1100, lane: 4 }
-    ]},
-    { time: 10500, lane: 0, type: 'tap' }
-  ];
-
-  const patternLoopTime = 12000;
   let lastPatternCycle = -1;
 
   function spawnChartNotes(now) {
     const elapsed = now - songStartTime;
-    const currentCycle = Math.floor(elapsed / patternLoopTime);
+    const currentCycle = Math.floor(elapsed / chartData.loopTime);
     if (currentCycle > lastPatternCycle) {
       lastPatternCycle = currentCycle;
-      const cycleOffset = songStartTime + (currentCycle * patternLoopTime);
-      chartPattern.forEach(p => {
+      const cycleOffset = songStartTime + (currentCycle * chartData.loopTime);
+      chartData.notes.forEach(p => {
         notes.push({
           targetTime: cycleOffset + p.time,
           lane: p.lane !== undefined ? p.lane : 0,
@@ -341,6 +338,15 @@
   sliderTrack.addEventListener('pointerup', endSliderTouch);
   sliderTrack.addEventListener('pointercancel', endSliderTouch);
 
+  // ★ 캐릭터 탈선(Lane Out) 확인 함수: 현재 캐릭터 위치가 활성화된 레인/벽 안쪽에 있는지 검사
+  function isCharacterDerailed(now) {
+    const judgeY = canvas.height * 0.90;
+    const bottomM = getTrackMetricsAt(judgeY, now);
+    const charX = bottomM.fullLeft + bottomM.fullWidth * playerX;
+    // 활성화된 벽(wallLeft ~ wallRight) 범위를 벗어나면 탈선
+    return charX < bottomM.wallLeft || charX > bottomM.wallRight;
+  }
+
   function triggerMissAt(x, y) {
     combo = 0;
     judgePopups.push({
@@ -352,6 +358,8 @@
 
   function checkFlickJudge(moveDir) {
     const now = performance.now();
+    if (isCharacterDerailed(now)) return; // 탈선 시 입력 차단
+
     const judgeY = canvas.height * 0.90;
     const bottomM = getTrackMetricsAt(judgeY, now);
 
@@ -420,6 +428,9 @@
     pressedKeys[keyIndex] = true;
 
     const now = performance.now();
+    // ★ 캐릭터가 탈선한 경우 노트 입력 완전 차단
+    if (isCharacterDerailed(now)) return;
+
     const judgeY = canvas.height * 0.90;
     const bottomM = getTrackMetricsAt(judgeY, now);
 
@@ -428,7 +439,6 @@
       const targetSide = keyIndex === 0 ? 'left' : 'right';
       wallFlash[targetSide] = 1.0;
 
-      // 끊어진 벽치기 롱노트 이어잡기
       for (let note of notes) {
         if (note.type === 'sideHold' && !note.completed && !note.missed && note.side === targetSide) {
           if (now >= note.targetTime - SIDE_HIT_WINDOW_MS && now <= note.targetTime + note.holdDuration && !note.holding && note.hit) {
@@ -481,7 +491,6 @@
     if (!colorType) return;
     const targetLanes = COLOR_BUTTON_LANES[colorType];
 
-    // 도중에 뗀 롱노트 이어잡기
     for (let note of notes) {
       if (note.type === 'hold' && !note.completed && !note.missed && targetLanes.includes(note.lane)) {
         if (now >= note.targetTime - HIT_WINDOW_MS && now <= note.targetTime + note.holdDuration && !note.holding && note.hit) {
@@ -768,7 +777,6 @@
     const travelDuration = (BASE_NOTE_TRAVEL_TIME * 1000) / noteSpeedMultiplier;
     const bottomM = getTrackMetricsAt(judgeY, now);
 
-    // ★ 시간축을 36단계로 분할하여 노트와 함께 내려오는 가변 트랙 폴리곤 생성
     const trackSteps = 36;
     let trackSlices = [];
     for (let s = 0; s <= trackSteps; s++) {
@@ -778,7 +786,7 @@
       trackSlices.push({ y: py, m: m });
     }
 
-    // 1. 노트와 함께 꺾이며 내려오는 트랙 배경 폴리곤
+    // 1. 트랙 배경 폴리곤
     ctx.fillStyle = 'rgba(10, 10, 22, 0.94)';
     ctx.beginPath();
     ctx.moveTo(trackSlices[0].m.wallLeft, trackSlices[0].y);
@@ -791,7 +799,7 @@
     ctx.closePath();
     ctx.fill();
 
-    // 2. 가변 트랙 내부 클리핑 영역 설정 (깎여나간 부분의 레인 선과 바닥 노트가 자연스럽게 잘림)
+    // 2. 클리핑 영역 설정
     ctx.save();
     ctx.beginPath();
     ctx.moveTo(trackSlices[0].m.wallLeft, trackSlices[0].y);
@@ -804,7 +812,6 @@
     ctx.closePath();
     ctx.clip();
 
-    // 고정 6레인 기준 가이드 선 렌더링
     const topFullM = trackSlices[trackSlices.length - 1].m;
     for (let i = 0; i < 6; i++) {
       const ratio = FIXED_LANE_RATIOS[i];
@@ -822,7 +829,7 @@
     }
     ctx.globalAlpha = 1.0;
 
-    // 3. 바닥 레인 노트(단노트, 지그재그 롱노트) 렌더링
+    // 3. 노트 렌더링
     for (let i = notes.length - 1; i >= 0; i--) {
       const note = notes[i];
 
@@ -1002,7 +1009,7 @@
 
     ctx.restore();
 
-    // 4. 노트와 함께 꺾이며 내려오는 양쪽 측면 벽(SIDE WALL) 경계선 렌더링
+    // 4. 측면 벽 라인 렌더링
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.strokeStyle = wallFlash.left > 0 ? '#ffffff' : '#9b59b6';
@@ -1034,7 +1041,7 @@
     ctx.lineTo(bottomM.wallRight, judgeY);
     ctx.stroke();
 
-    // 6. 벽치기 노트(SIDE / SIDE HOLD) & 슬라이드(FLICK) 노트 렌더링
+    // 6. 벽치기 노트 및 슬라이드 노트 렌더링
     for (let i = 0; i < notes.length; i++) {
       const note = notes[i];
       if (note.completed || note.missed || (note.type !== 'sideHold' && note.hit)) continue;
@@ -1051,7 +1058,6 @@
         drawSideNoteShape(wallX, currentY - 6, size, isLeft, false);
       }
       else if (note.type === 'sideHold') {
-        // ★ 벽치기 롱노트 24단계 세밀 샘플링 (꺾이는 벽을 따라 휘어지며 내려옴)
         const tailTime = note.targetTime + note.holdDuration;
         const steps = 24;
         const visibleHeadT = note.holding ? Math.max(note.targetTime, now) : Math.max(note.targetTime, now - SIDE_HIT_WINDOW_MS);
@@ -1075,7 +1081,6 @@
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
 
-            // 외곽 보라색 레일 몸통
             ctx.strokeStyle = '#6c5ce7';
             ctx.lineWidth = 10;
             ctx.beginPath();
@@ -1085,7 +1090,6 @@
             }
             ctx.stroke();
 
-            // 내부 어두운 홈 라인 (2중 레일 효과)
             ctx.strokeStyle = '#221155';
             ctx.lineWidth = 3;
             ctx.beginPath();
@@ -1097,7 +1101,6 @@
             ctx.restore();
           }
 
-          // 꼬리가 실제 화면(now + travelDuration) 안으로 들어왔을 때만 꼬리 캡 표시
           if (tailTime <= now + travelDuration) {
             const tailPt = sidePts[sidePts.length - 1];
             ctx.fillStyle = '#341f97';
@@ -1107,7 +1110,6 @@
             ctx.strokeRect(tailPt.x - 11, tailPt.y - 11, 22, 10);
           }
 
-          // 앞쪽 입체 육각형 헤드
           const headPt = sidePts[0];
           const size = 16 + (headPt.y / judgeY) * 7;
           drawSideNoteShape(headPt.x, headPt.y - 6, size, isLeft, true);
@@ -1182,14 +1184,16 @@
       if (p.alpha <= 0) judgePopups.splice(i, 1);
     }
 
-    // 9. 캐릭터 (현재 판정선 위치의 활성화된 벽 사이에서 이동)
-    const charX = bottomM.wallLeft + bottomM.activeWidth * playerX;
-    ctx.fillStyle = '#00ffcc';
+    // 9. 캐릭터 (탈선 시 시각적으로 경고 표시 가능)
+    const charX = bottomM.fullLeft + bottomM.fullWidth * playerX;
+    const derailed = isCharacterDerailed(now);
+
+    ctx.fillStyle = derailed ? '#ff4757' : '#00ffcc';
     ctx.beginPath();
     ctx.arc(charX, judgeY, 16, 0, Math.PI * 2);
     ctx.fill();
 
-    ctx.fillStyle = '#ff0000';
+    ctx.fillStyle = '#ffffff';
     ctx.beginPath();
     ctx.arc(charX, judgeY, 5, 0, Math.PI * 2);
     ctx.fill();
