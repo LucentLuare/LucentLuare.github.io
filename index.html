@@ -91,8 +91,8 @@
   let lastTouchX = 0;
   const SLIDER_SENSITIVITY = 1.25;
 
-  // ★ 노트 속도 조절 변수 (터치와 완전히 독립됨)
-  const NOTE_SPEED = 0.0055; 
+  // ★ 터치 및 프레임에 영향받지 않는 독립적인 노트 속도 (초당 진행 비율, 예: 0.35이면 위에서 아래까지 약 2.8초 소요)
+  const NOTE_SPEED_PER_SEC = 0.38; 
 
   sliderTrack.addEventListener('pointerdown', (e) => {
     if (sliderPointerId === null) {
@@ -134,7 +134,12 @@
     { progress: 0.7, lane: 2, color: '#1e90ff' }  
   ];
 
-  function loop() {
+  let lastTime = performance.now();
+
+  function loop(currentTime) {
+    const deltaTime = (currentTime - lastTime) / 1000; // 초 단위 시간 간격
+    lastTime = currentTime;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     const topY = 0;
@@ -156,7 +161,7 @@
     const topM = getTrackMetrics(topY);
     const bottomM = getTrackMetrics(judgeY);
 
-    // 트랙 배경
+    // 1. 트랙 배경
     ctx.fillStyle = 'rgba(15, 15, 30, 0.85)';
     ctx.beginPath();
     ctx.moveTo(topM.left, topY);
@@ -166,18 +171,16 @@
     ctx.closePath();
     ctx.fill();
 
-    // 트랙 내부 가로 격자선
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-    ctx.lineWidth = 1;
-    const gridCount = 10;
-    for (let i = 0; i <= gridCount; i++) {
-      let gridProg = (Date.now() * 0.0005 * (NOTE_SPEED * 200) + i / gridCount) % 1.0;
-      let gY = topY + (judgeY - topY) * gridProg;
-      let gm = getTrackMetrics(gY);
-      
+    // 2. 노트가 타고 내려오는 3레인 가이드 세로선 (노트 뒤쪽에 배치)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    ctx.lineWidth = 1.5;
+    for (let i = 1; i <= 2; i++) {
+      const ratio = i / 3;
+      const tX = topM.left + topM.width * ratio;
+      const bX = bottomM.left + bottomM.width * ratio;
       ctx.beginPath();
-      ctx.moveTo(gm.left, gY);
-      ctx.lineTo(gm.right, gY);
+      ctx.moveTo(tX, topY);
+      ctx.lineTo(bX, judgeY);
       ctx.stroke();
     }
 
@@ -191,12 +194,12 @@
     ctx.lineTo(bottomM.right, judgeY);
     ctx.stroke();
 
-    // ★ 벽돌 노트 렌더링 (세로 두께 유지 + 가로 크기를 레인의 1/8 수준으로 밀착)
+    // 3. 벽돌 노트 렌더링 (독립된 Delta Time 속도 적용 + 가로 크기 전체 트랙의 1/8)
     testBricks.forEach(brick => {
-      brick.progress += NOTE_SPEED; 
+      brick.progress += NOTE_SPEED_PER_SEC * deltaTime; 
       if (brick.progress > 1.0) brick.progress = 0.0;
 
-      const brickHeight = 20; // 노트의 세로 두께 고정
+      const brickHeight = 20; // 세로 두께 유지
       const currentY = topY + (judgeY - topY) * brick.progress;
       
       const m = getTrackMetrics(currentY);
@@ -205,8 +208,8 @@
       // 해당 레인의 중앙 X 좌표
       const laneCenterX = m.left + laneWidth * brick.lane + laneWidth / 2;
       
-      // 노트의 가로 폭을 레인 너비의 1/8 (또는 적절한 비율)로 고정하여 밀집감 부여
-      const brickWidth = laneWidth * (7 / 8); 
+      // ★ 가로 크기를 전체 트랙 너비의 1/8로 고정
+      const brickWidth = m.width / 8; 
 
       const x1 = laneCenterX - brickWidth / 2;
       const x2 = laneCenterX + brickWidth / 2;
@@ -222,7 +225,7 @@
       ctx.lineWidth = 1;
       ctx.strokeRect(x1, y1, brickWidth, brickHeight);
 
-      // ★ 노트 중앙의 수평(가로) 하얀색 하이라이트 라인
+      // 노트 중앙의 수평(가로) 하얀색 하이라이트 라인
       const halfY = y1 + brickHeight * 0.5;
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2.5;
@@ -232,7 +235,7 @@
       ctx.stroke();
     });
 
-    // 판정선
+    // 4. 판정선
     ctx.strokeStyle = '#e94560';
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -240,7 +243,7 @@
     ctx.lineTo(bottomM.right, judgeY);
     ctx.stroke();
 
-    // 캐릭터
+    // 5. 캐릭터
     const charX = playerX * canvas.width;
     ctx.fillStyle = '#00ffcc';
     ctx.beginPath();
@@ -254,7 +257,7 @@
 
     requestAnimationFrame(loop);
   }
-  loop();
+  requestAnimationFrame(loop);
 </script>
 </body>
 </html>
