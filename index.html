@@ -91,10 +91,9 @@
   let lastTouchX = 0;
   const SLIDER_SENSITIVITY = 1.25;
 
-  // 노트 속도 조절 전용 변수
+  // ★ 노트 속도 조절 변수 (터치와 완전히 독립됨)
   const NOTE_SPEED = 0.0055; 
 
-  // 슬라이더 조작
   sliderTrack.addEventListener('pointerdown', (e) => {
     if (sliderPointerId === null) {
       sliderPointerId = e.pointerId;
@@ -129,7 +128,6 @@
     btn.addEventListener('pointercancel', release);
   });
 
-  // 테스트용 벽돌 노트 데이터
   let testBricks = [
     { progress: 0.1, lane: 1, color: '#2ed573' }, 
     { progress: 0.4, lane: 0, color: '#ff4757' }, 
@@ -168,7 +166,7 @@
     ctx.closePath();
     ctx.fill();
 
-    // 트랙 내부 가로 격자선(그리드 라인)
+    // 트랙 내부 가로 격자선
     ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
     ctx.lineWidth = 1;
     const gridCount = 10;
@@ -193,52 +191,44 @@
     ctx.lineTo(bottomM.right, judgeY);
     ctx.stroke();
 
-    // 벽돌 노트 렌더링
+    // ★ 벽돌 노트 렌더링 (세로 두께 유지 + 가로 크기를 레인의 1/8 수준으로 밀착)
     testBricks.forEach(brick => {
       brick.progress += NOTE_SPEED; 
       if (brick.progress > 1.0) brick.progress = 0.0;
 
-      const brickHeight = 18; 
+      const brickHeight = 20; // 노트의 세로 두께 고정
       const currentY = topY + (judgeY - topY) * brick.progress;
       
-      const mFront = getTrackMetrics(currentY);
-      const mBack = getTrackMetrics(currentY - brickHeight);
+      const m = getTrackMetrics(currentY);
+      const laneWidth = m.width / 3;
       
-      const laneWidthFront = mFront.width / 3;
-      const laneWidthBack = mBack.width / 3;
+      // 해당 레인의 중앙 X 좌표
+      const laneCenterX = m.left + laneWidth * brick.lane + laneWidth / 2;
+      
+      // 노트의 가로 폭을 레인 너비의 1/8 (또는 적절한 비율)로 고정하여 밀집감 부여
+      const brickWidth = laneWidth * (7 / 8); 
 
-      const x1 = mBack.left + laneWidthBack * brick.lane + 2;
-      const x2 = mBack.left + laneWidthBack * (brick.lane + 1) - 2;
-      const x3 = mFront.left + laneWidthFront * (brick.lane + 1) - 2;
-      const x4 = mFront.left + laneWidthFront * brick.lane + 2;
+      const x1 = laneCenterX - brickWidth / 2;
+      const x2 = laneCenterX + brickWidth / 2;
       const y1 = currentY - brickHeight;
       const y2 = currentY;
 
       // 벽돌 본체
       ctx.fillStyle = brick.color;
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y1);
-      ctx.lineTo(x3, y2);
-      ctx.lineTo(x4, y2);
-      ctx.closePath();
-      ctx.fill();
+      ctx.fillRect(x1, y1, brickWidth, brickHeight);
 
       // 벽돌 테두리
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1;
-      ctx.stroke();
+      ctx.strokeRect(x1, y1, brickWidth, brickHeight);
 
-      // ★ 노트 중앙의 수평(가로) 하얀색 하이라이트 라인 (온게키 스타일)
-      const halfY = y1 + (y2 - y1) * 0.5;
-      const leftMidX = (x1 + x4) / 2;
-      const rightMidX = (x2 + x3) / 2;
-      
+      // ★ 노트 중앙의 수평(가로) 하얀색 하이라이트 라인
+      const halfY = y1 + brickHeight * 0.5;
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2.5;
       ctx.beginPath();
-      ctx.moveTo(leftMidX + 3, halfY);
-      ctx.lineTo(rightMidX - 3, halfY);
+      ctx.moveTo(x1 + 4, halfY);
+      ctx.lineTo(x2 - 4, halfY);
       ctx.stroke();
     });
 
