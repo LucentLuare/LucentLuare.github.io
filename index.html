@@ -8,16 +8,39 @@
     * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
     body {
       margin: 0; background: #111; display: flex; justify-content: center; align-items: center;
-      height: 100vh; overflow: hidden; touch-action: none;
+      height: 100vh; overflow: hidden; touch-action: none; font-family: 'Segoe UI', sans-serif;
     }
     #game-container {
       width: 100vw; max-width: 56.25vh;
       height: 100vh; max-height: 177.78vw;
       background: #0b0b16; display: flex; flex-direction: column; border: 2px solid #333;
+      position: relative;
     }
     #play-area { flex: 68; position: relative; width: 100%; overflow: hidden; }
     canvas { width: 100%; height: 100%; display: block; }
     
+    #hud-top {
+      position: absolute; top: 8px; left: 8px; right: 8px;
+      display: flex; justify-content: space-between; align-items: center;
+      pointer-events: none; z-index: 10;
+    }
+    #speed-control {
+      display: flex; align-items: center; gap: 6px;
+      background: rgba(22, 33, 62, 0.85); border: 1px solid #e94560;
+      padding: 4px 8px; border-radius: 8px; color: white; font-size: 12px; font-weight: bold;
+      pointer-events: auto;
+    }
+    .speed-btn {
+      background: #e94560; border: none; color: white; width: 22px; height: 22px;
+      border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer;
+      display: flex; justify-content: center; align-items: center;
+    }
+    .speed-btn:active { background: #ff6b81; }
+    #score-board {
+      background: rgba(22, 33, 62, 0.85); border: 1px solid #00ffcc;
+      padding: 4px 10px; border-radius: 8px; color: #00ffcc; font-size: 12px; font-weight: bold;
+    }
+
     #controller-area {
       flex: 32; background: #16213e; display: flex; flex-direction: column; padding: 6px; gap: 6px;
       border-top: 2px solid #e94560;
@@ -36,23 +59,32 @@
     }
     .btn {
       background: #1e1e24; border: 2px solid #555; border-radius: 6px; color: white;
-      display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 11px;
-      transition: background-color 0.05s, box-shadow 0.05s;
+      display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 12px;
+      transition: background-color 0.04s, box-shadow 0.04s, transform 0.04s;
     }
+    .btn.active { transform: scale(0.95); }
     .btn-side { background: #2c163b; border-color: #b53471; color: #f8a5c2; }
-    .btn-side.active { background: #b53471; border-color: #fff; color: #fff; box-shadow: 0 0 10px #b53471; }
+    .btn-side.active { background: #b53471; border-color: #fff; color: #fff; box-shadow: 0 0 12px #b53471; }
     .btn-red { background: #3b1419; border-color: #ff4757; color: #ff6b81; }
-    .btn-red.active { background: #ff4757; border-color: #fff; color: #fff; box-shadow: 0 0 10px #ff4757; }
+    .btn-red.active { background: #ff4757; border-color: #fff; color: #fff; box-shadow: 0 0 12px #ff4757; }
     .btn-green { background: #113320; border-color: #2ed573; color: #7bed9f; }
-    .btn-green.active { background: #2ed573; border-color: #fff; color: #111; box-shadow: 0 0 10px #2ed573; }
+    .btn-green.active { background: #2ed573; border-color: #fff; color: #111; box-shadow: 0 0 12px #2ed573; }
     .btn-blue { background: #102542; border-color: #1e90ff; color: #70a1ff; }
-    .btn-blue.active { background: #1e90ff; border-color: #fff; color: #fff; box-shadow: 0 0 10px #1e90ff; }
+    .btn-blue.active { background: #1e90ff; border-color: #fff; color: #fff; box-shadow: 0 0 12px #1e90ff; }
   </style>
 </head>
 <body>
 
 <div id="game-container">
   <div id="play-area">
+    <div id="hud-top">
+      <div id="speed-control">
+        <button class="speed-btn" id="speed-down">-</button>
+        <span id="speed-display">SPEED 1.0x</span>
+        <button class="speed-btn" id="speed-up">+</button>
+      </div>
+      <div id="score-board">SCORE: <span id="score-val">0</span></div>
+    </div>
     <canvas id="gameCanvas"></canvas>
   </div>
   <div id="controller-area">
@@ -78,6 +110,8 @@
   const sliderTrack = document.getElementById('slider-track');
   const sliderKnob = document.getElementById('slider-knob');
   const buttons = document.querySelectorAll('.btn');
+  const speedDisplay = document.getElementById('speed-display');
+  const scoreVal = document.getElementById('score-val');
 
   function resize() {
     canvas.width = canvas.clientWidth;
@@ -91,9 +125,34 @@
   let lastTouchX = 0;
   const SLIDER_SENSITIVITY = 1.25;
 
-  const NOTE_SPEED = 0.40; 
-  let lastTime = performance.now();
+  let noteSpeedMultiplier = 1.0;
+  const BASE_NOTE_TRAVEL_TIME = 1.6;
 
+  let score = 0;
+  let combo = 0;
+  let judgeEffect = { text: '', color: '#fff', alpha: 0, scale: 1 };
+  let laneFlash = [0, 0, 0, 0, 0, 0];
+
+  const LANE_COLORS = ['#ff4757', '#2ed573', '#1e90ff', '#ff4757', '#2ed573', '#1e90ff'];
+  const LANE_RATIOS = [1/7, 2/7, 3/7, 4/7, 5/7, 6/7];
+
+  let notes = [];
+  let lastSpawnTime = 0;
+
+  // 배속 조절
+  document.getElementById('speed-down').addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    noteSpeedMultiplier = Math.max(0.5, Math.round((noteSpeedMultiplier - 0.1) * 10) / 10);
+    speedDisplay.textContent = `SPEED ${noteSpeedMultiplier.toFixed(1)}x`;
+  });
+
+  document.getElementById('speed-up').addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    noteSpeedMultiplier = Math.min(3.0, Math.round((noteSpeedMultiplier + 0.1) * 10) / 10);
+    speedDisplay.textContent = `SPEED ${noteSpeedMultiplier.toFixed(1)}x`;
+  });
+
+  // 슬라이더 조작
   sliderTrack.addEventListener('pointerdown', (e) => {
     if (sliderPointerId === null) {
       sliderPointerId = e.pointerId;
@@ -107,7 +166,6 @@
       const rect = sliderTrack.getBoundingClientRect();
       const deltaX = e.clientX - lastTouchX;
       lastTouchX = e.clientX;
-
       const deltaRatio = (deltaX / rect.width) * SLIDER_SENSITIVITY;
       playerX = Math.max(0.06, Math.min(0.94, playerX + deltaRatio));
       sliderKnob.style.left = `${playerX * 100}%`;
@@ -120,30 +178,103 @@
   sliderTrack.addEventListener('pointerup', endSliderTouch);
   sliderTrack.addEventListener('pointercancel', endSliderTouch);
 
+  // 버튼 입력 및 프레임 기반 판정 시스템 (60FPS 기준: 1F = 16.67ms)
+  function triggerButtonInput(keyIndex) {
+    if (keyIndex >= 1 && keyIndex <= 6) {
+      const lane = keyIndex - 1;
+      laneFlash[lane] = 1.0;
+      judgeNote(lane);
+    }
+  }
+
   buttons.forEach(btn => {
-    btn.addEventListener('pointerdown', () => btn.classList.add('active'));
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      btn.classList.add('active');
+      triggerButtonInput(Number(btn.dataset.key));
+    });
     const release = () => btn.classList.remove('active');
     btn.addEventListener('pointerup', release);
     btn.addEventListener('pointerleave', release);
     btn.addEventListener('pointercancel', release);
   });
 
-  const LANE_COLORS = ['#ff4757', '#2ed573', '#1e90ff', '#ff4757', '#2ed573', '#1e90ff'];
-  const LANE_RATIOS = [1/7, 2/7, 3/7, 4/7, 5/7, 6/7];
+  const KEY_MAP = { 'a': 1, 's': 2, 'd': 3, 'j': 4, 'k': 5, 'l': 6 };
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    const keyIdx = KEY_MAP[e.key.toLowerCase()];
+    if (keyIdx) {
+      const btnEl = document.querySelector(`.btn[data-key="${keyIdx}"]`);
+      if (btnEl) btnEl.classList.add('active');
+      triggerButtonInput(keyIdx);
+    }
+  });
+  window.addEventListener('keyup', (e) => {
+    const keyIdx = KEY_MAP[e.key.toLowerCase()];
+    if (keyIdx) {
+      const btnEl = document.querySelector(`.btn[data-key="${keyIdx}"]`);
+      if (btnEl) btnEl.classList.remove('active');
+    }
+  });
 
-  let testBricks = [
-    { progress: 0.0, lane: 0 }, 
-    { progress: 0.25, lane: 1 }, 
-    { progress: 0.5, lane: 2 }, 
-    { progress: 0.75, lane: 4 }  
-  ];
+  function judgeNote(lane) {
+    const now = performance.now();
+    let targetNote = null;
+    let minDiff = Infinity;
+
+    for (let note of notes) {
+      if (!note.hit && note.lane === lane) {
+        const diff = Math.abs(now - note.targetTime);
+        if (diff < minDiff) {
+          minDiff = diff;
+          targetNote = note;
+        }
+      }
+    }
+
+    const FRAME_MS = 1000 / 60; // 약 16.67ms per frame
+
+    if (targetNote && minDiff <= 8 * FRAME_MS) { // 최대 HIT 범위 (8프레임 = 약 133.3ms)
+      targetNote.hit = true;
+      if (minDiff <= 1 * FRAME_MS) {
+        showJudge('PLATINUM BREAK', '#00ffcc', 1200);
+        combo++;
+      } else if (minDiff <= 2 * FRAME_MS) {
+        showJudge('CRITICAL BREAK', '#ffd700', 1000);
+        combo++;
+      } else if (minDiff <= 4 * FRAME_MS) {
+        showJudge('BREAK', '#ff4757', 700);
+        combo++;
+      } else {
+        showJudge('HIT', '#2ed573', 400);
+        combo++;
+      }
+    }
+  }
+
+  function showJudge(text, color, addScore) {
+    judgeEffect = { text, color, alpha: 1.0, scale: 1.25 };
+    if (addScore > 0) {
+      score += addScore + (combo * 10);
+      scoreVal.textContent = score.toLocaleString();
+    } else {
+      combo = 0;
+    }
+  }
 
   function loop() {
-    const currentTime = performance.now();
-    const deltaTime = (currentTime - lastTime) / 1000;
-    lastTime = currentTime;
-
+    const now = performance.now();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    if (now - lastSpawnTime > 450) {
+      lastSpawnTime = now;
+      const randomLane = Math.floor(Math.random() * 6);
+      notes.push({
+        targetTime: now + 2500,
+        lane: randomLane,
+        hit: false
+      });
+    }
 
     const topY = 0;
     const judgeY = canvas.height * 0.90;     
@@ -164,7 +295,6 @@
     const topM = getTrackMetrics(topY);
     const bottomM = getTrackMetrics(judgeY);
 
-    // 1. 트랙 배경
     ctx.fillStyle = 'rgba(10, 10, 22, 0.92)';
     ctx.beginPath();
     ctx.moveTo(topM.left, topY);
@@ -174,20 +304,22 @@
     ctx.closePath();
     ctx.fill();
 
-    // 2. 6개 레인 컬러 가이드 선
     for (let i = 0; i < 6; i++) {
       const ratio = LANE_RATIOS[i];
       ctx.strokeStyle = LANE_COLORS[i];
-      ctx.lineWidth = 2;
-      ctx.globalAlpha = 0.65;
+      ctx.lineWidth = 2 + laneFlash[i] * 3;
+      ctx.globalAlpha = 0.55 + laneFlash[i] * 0.45;
       ctx.beginPath();
       ctx.moveTo(topM.left + topM.width * ratio, topY);
       ctx.lineTo(bottomM.left + bottomM.width * ratio, judgeY);
       ctx.stroke();
+
+      if (laneFlash[i] > 0) {
+        laneFlash[i] = Math.max(0, laneFlash[i] - 0.08);
+      }
     }
     ctx.globalAlpha = 1.0;
 
-    // 사이드 벽 선
     ctx.strokeStyle = '#b53471';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -197,41 +329,50 @@
     ctx.lineTo(bottomM.right, judgeY);
     ctx.stroke();
 
-    // 3. 벽돌 노트 렌더링 (내려올수록 가속되는 연출 + 1/8 가로 비율 고정)
-    testBricks.forEach(brick => {
-      brick.progress += NOTE_SPEED * deltaTime; 
-      if (brick.progress > 1.0) brick.progress = 0.0;
+    const travelDuration = (BASE_NOTE_TRAVEL_TIME * 1000) / noteSpeedMultiplier;
+    const FRAME_MS = 1000 / 60;
 
-      // ★ 아래로 올수록 가속감이 붙는 지수 함수 곡선 적용 (값이 낮을수록 판정선 근처에서 확 빨라짐)
-      const visualProgress = Math.pow(brick.progress, 0.45);
+    for (let i = notes.length - 1; i >= 0; i--) {
+      const note = notes[i];
+      if (note.hit) {
+        notes.splice(i, 1);
+        continue;
+      }
+
+      const timeLeft = note.targetTime - now;
+
+      if (timeLeft < -8 * FRAME_MS) {
+        showJudge('MISS', '#888888', 0);
+        notes.splice(i, 1);
+        continue;
+      }
+
+      if (timeLeft > travelDuration) continue;
+
+      const linearProgress = 1 - (timeLeft / travelDuration);
+      const visualProgress = Math.pow(Math.max(0, linearProgress), 2.1);
       const currentY = topY + (judgeY - topY) * visualProgress;
-      
+
       const m = getTrackMetrics(currentY);
-      const ratio = LANE_RATIOS[brick.lane];
-      
+      const ratio = LANE_RATIOS[note.lane];
       const noteCenterX = m.left + m.width * ratio;
-      
-      // 노트 가로 크기: 전체 트랙 너비의 1/8
-      const brickWidth = m.width / 8; 
-      // 노트 세로 두께 (비율 유지)
-      const brickHeight = 18; 
+
+      const brickWidth = m.width / 8;
+      const brickHeight = 18;
 
       const x1 = noteCenterX - brickWidth / 2;
       const x2 = noteCenterX + brickWidth / 2;
       const y1 = currentY - brickHeight;
       const y2 = currentY;
-      const noteColor = LANE_COLORS[brick.lane];
+      const noteColor = LANE_COLORS[note.lane];
 
-      // 벽돌 본체
       ctx.fillStyle = noteColor;
       ctx.fillRect(x1, y1, brickWidth, brickHeight);
 
-      // 벽돌 테두리
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1;
       ctx.strokeRect(x1, y1, brickWidth, brickHeight);
 
-      // 노트 중앙 수평(가로) 하얀색 하이라이트 라인
       const halfY = y1 + brickHeight * 0.5;
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2.5;
@@ -239,9 +380,8 @@
       ctx.moveTo(x1 + 3, halfY);
       ctx.lineTo(x2 - 3, halfY);
       ctx.stroke();
-    });
+    }
 
-    // 4. 판정선
     ctx.strokeStyle = '#e94560';
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -249,7 +389,25 @@
     ctx.lineTo(bottomM.right, judgeY);
     ctx.stroke();
 
-    // 5. 캐릭터
+    if (judgeEffect.alpha > 0) {
+      ctx.save();
+      ctx.globalAlpha = judgeEffect.alpha;
+      ctx.fillStyle = judgeEffect.color;
+      ctx.font = `bold ${Math.round(22 * judgeEffect.scale)}px sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.fillText(judgeEffect.text, centerX, judgeY - 75);
+
+      if (combo > 1) {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 18px sans-serif';
+        ctx.fillText(`${combo} COMBO`, centerX, judgeY - 48);
+      }
+      ctx.restore();
+
+      judgeEffect.alpha -= 0.025;
+      judgeEffect.scale = Math.max(1.0, judgeEffect.scale - 0.02);
+    }
+
     const charX = playerX * canvas.width;
     ctx.fillStyle = '#00ffcc';
     ctx.beginPath();
@@ -263,10 +421,7 @@
 
     requestAnimationFrame(loop);
   }
-  requestAnimationFrame(() => {
-    lastTime = performance.now();
-    loop();
-  });
+  requestAnimationFrame(loop);
 </script>
 </body>
 </html>
