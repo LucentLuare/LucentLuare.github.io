@@ -130,7 +130,8 @@
 
   let score = 0;
   let combo = 0;
-  let judgeEffect = { text: '', color: '#fff', alpha: 0, scale: 1 };
+  // 각 레인별로 처리된 노트 바로 위에 뜰 판정 팝업 관리 배열
+  let judgePopups = []; 
   let laneFlash = [0, 0, 0, 0, 0, 0];
 
   const LANE_COLORS = ['#ff4757', '#2ed573', '#1e90ff', '#ff4757', '#2ed573', '#1e90ff'];
@@ -139,7 +140,6 @@
   let notes = [];
   let lastSpawnTime = 0;
 
-  // 배속 조절
   document.getElementById('speed-down').addEventListener('pointerdown', (e) => {
     e.stopPropagation();
     noteSpeedMultiplier = Math.max(0.5, Math.round((noteSpeedMultiplier - 0.1) * 10) / 10);
@@ -152,7 +152,6 @@
     speedDisplay.textContent = `SPEED ${noteSpeedMultiplier.toFixed(1)}x`;
   });
 
-  // 슬라이더 조작
   sliderTrack.addEventListener('pointerdown', (e) => {
     if (sliderPointerId === null) {
       sliderPointerId = e.pointerId;
@@ -178,7 +177,6 @@
   sliderTrack.addEventListener('pointerup', endSliderTouch);
   sliderTrack.addEventListener('pointercancel', endSliderTouch);
 
-  // 버튼 입력 및 프레임 기반 판정 시스템 (60FPS 기준: 1F = 16.67ms)
   function triggerButtonInput(keyIndex) {
     if (keyIndex >= 1 && keyIndex <= 6) {
       const lane = keyIndex - 1;
@@ -232,33 +230,63 @@
       }
     }
 
-    const FRAME_MS = 1000 / 60; // 약 16.67ms per frame
+    const FRAME_MS = 1000 / 60;
+    const judgeY = canvas.height * 0.90;
+    const topY = 0;
+    const topWidth = canvas.width * 0.22;
+    const bottomWidth = canvas.width * 0.84;
+    const centerX = canvas.width / 2;
 
-    if (targetNote && minDiff <= 8 * FRAME_MS) { // 최대 HIT 범위 (8프레임 = 약 133.3ms)
+    function getTrackMetrics(y) {
+      const p = Math.max(0, Math.min(1, (y - topY) / (judgeY - topY)));
+      const currentWidth = topWidth + (bottomWidth - topWidth) * p;
+      return { left: centerX - currentWidth / 2, width: currentWidth };
+    }
+
+    if (targetNote && minDiff <= 8 * FRAME_MS) {
       targetNote.hit = true;
+      let textLines = [];
+      let color = '#fff';
+      let addScore = 0;
+
       if (minDiff <= 1 * FRAME_MS) {
-        showJudge('PLATINUM BREAK', '#00ffcc', 1200);
+        textLines = ['PLATINUM', 'BREAK'];
+        color = '#00ffcc';
+        addScore = 1200;
         combo++;
       } else if (minDiff <= 2 * FRAME_MS) {
-        showJudge('CRITICAL BREAK', '#ffd700', 1000);
+        textLines = ['CRITICAL', 'BREAK'];
+        color = '#ffd700';
+        addScore = 1000;
         combo++;
       } else if (minDiff <= 4 * FRAME_MS) {
-        showJudge('BREAK', '#ff4757', 700);
+        textLines = ['BREAK'];
+        color = '#ff4757';
+        addScore = 700;
         combo++;
       } else {
-        showJudge('HIT', '#2ed573', 400);
+        textLines = ['HIT'];
+        color = '#2ed573';
+        addScore = 400;
         combo++;
       }
-    }
-  }
 
-  function showJudge(text, color, addScore) {
-    judgeEffect = { text, color, alpha: 1.0, scale: 1.25 };
-    if (addScore > 0) {
       score += addScore + (combo * 10);
       scoreVal.textContent = score.toLocaleString();
-    } else {
-      combo = 0;
+
+      // 해당 레인 위치 계산
+      const m = getTrackMetrics(judgeY);
+      const laneX = m.left + m.width * LANE_RATIOS[lane];
+
+      judgePopups.push({
+        x: laneX,
+        y: judgeY - 30, // 노트 바로 위
+        lines: textLines,
+        color: color,
+        combo: combo > 1 ? combo : null,
+        alpha: 1.0,
+        scale: 1.2
+      });
     }
   }
 
@@ -342,7 +370,18 @@
       const timeLeft = note.targetTime - now;
 
       if (timeLeft < -8 * FRAME_MS) {
-        showJudge('MISS', '#888888', 0);
+        combo = 0;
+        const m = getTrackMetrics(judgeY);
+        const laneX = m.left + m.width * LANE_RATIOS[note.lane];
+        judgePopups.push({
+          x: laneX,
+          y: judgeY - 30,
+          lines: ['MISS'],
+          color: '#888888',
+          combo: null,
+          alpha: 1.0,
+          scale: 1.0
+        });
         notes.splice(i, 1);
         continue;
       }
@@ -389,23 +428,40 @@
     ctx.lineTo(bottomM.right, judgeY);
     ctx.stroke();
 
-    if (judgeEffect.alpha > 0) {
+    // 판정 및 콤보수 렌더링 (노트 바로 위 위치)
+    for (let i = judgePopups.length - 1; i >= 0; i--) {
+      let p = judgePopups[i];
       ctx.save();
-      ctx.globalAlpha = judgeEffect.alpha;
-      ctx.fillStyle = judgeEffect.color;
-      ctx.font = `bold ${Math.round(22 * judgeEffect.scale)}px sans-serif`;
+      ctx.globalAlpha = p.alpha;
       ctx.textAlign = 'center';
-      ctx.fillText(judgeEffect.text, centerX, judgeY - 75);
-
-      if (combo > 1) {
-        ctx.fillStyle = '#ffffff';
-        ctx.font = 'bold 18px sans-serif';
-        ctx.fillText(`${combo} COMBO`, centerX, judgeY - 48);
+      
+      // 판정 텍스트 (크리티컬/플래티넘은 2줄)
+      ctx.fillStyle = p.color;
+      ctx.font = `bold ${Math.round(15 * p.scale)}px sans-serif`;
+      
+      if (p.lines.length === 2) {
+        ctx.fillText(p.lines[0], p.x, p.y - 12);
+        ctx.fillText(p.lines[1], p.x, p.y);
+      } else {
+        ctx.fillText(p.lines[0], p.x, p.y - 6);
       }
+
+      // 콤보수 (숫자만 표시)
+      if (p.combo !== null) {
+        ctx.fillStyle = '#ffffff';
+        ctx.font = `bold ${Math.round(20 * p.scale)}px sans-serif`;
+        ctx.fillText(p.combo, p.x, p.y + 20);
+      }
+
       ctx.restore();
 
-      judgeEffect.alpha -= 0.025;
-      judgeEffect.scale = Math.max(1.0, judgeEffect.scale - 0.02);
+      p.alpha -= 0.03;
+      p.y -= 0.6; // 위로 살짝 떠오르는 애니메이션
+      p.scale = Math.max(1.0, p.scale - 0.01);
+
+      if (p.alpha <= 0) {
+        judgePopups.splice(i, 1);
+      }
     }
 
     const charX = playerX * canvas.width;
