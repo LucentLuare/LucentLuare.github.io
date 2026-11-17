@@ -130,9 +130,12 @@
 
   let score = 0;
   let combo = 0;
-  let judgePopups = []; 
+  let judgePopups = [];
+  let hitEffects = []; // 노트 타격 이펙트(링/스파크) 배열
   let laneFlash = [0, 0, 0, 0, 0, 0];
-  let activeButtons = { red: false, green: false, blue: false };
+
+  // 8개 버튼(0~7) 각각의 눌림 상태 독립 추적
+  let pressedKeys = [false, false, false, false, false, false, false, false];
 
   const LANE_COLORS = ['#ff4757', '#2ed573', '#1e90ff', '#ff4757', '#2ed573', '#1e90ff'];
   const LANE_RATIOS = [1/7, 2/7, 3/7, 4/7, 5/7, 6/7];
@@ -150,26 +153,38 @@
     return null;
   }
 
-  // ================= 채보 테스트 패턴 데이터 (동타, 롱노트, 롱잡 포함 무한 루프) =================
+  // ================= 종합 채보 패턴 (동색 동시치기, 롱노트, 동색 롱잡, 교차 연타) =================
   let notes = [];
   let songStartTime = performance.now();
   
   const chartPattern = [
+    // 1. 일반 단노트 워밍업
     { time: 1000, lane: 0, type: 'tap', holdDuration: 0 },
-    { time: 1500, lane: 5, type: 'tap', holdDuration: 0 },
-    // 동시치기 (빨강 레인 0번 + 파랑 레인 2번)
-    { time: 2200, lane: 0, type: 'tap', holdDuration: 0 },
-    { time: 2200, lane: 2, type: 'tap', holdDuration: 0 },
-    // 롱노트 (초록 레인 1번)
-    { time: 3000, lane: 1, type: 'hold', holdDuration: 1200 },
-    // 롱잡 패턴 (초록 롱노트를 누르고 있는 동안 파랑 레인 5번 단노트 처리)
-    { time: 3500, lane: 5, type: 'tap', holdDuration: 0 },
-    { time: 4200, lane: 3, type: 'tap', holdDuration: 0 },
-    { time: 4800, lane: 0, type: 'tap', holdDuration: 0 },
-    { time: 4800, lane: 4, type: 'tap', holdDuration: 0 },
+    { time: 1400, lane: 1, type: 'tap', holdDuration: 0 },
+    { time: 1800, lane: 2, type: 'tap', holdDuration: 0 },
+
+    // 2. 같은 색 동시치기 (1번 레드 + 4번 레드 동타 -> 1번과 4번 버튼 동시 입력 필요!)
+    { time: 2400, lane: 0, type: 'tap', holdDuration: 0 },
+    { time: 2400, lane: 3, type: 'tap', holdDuration: 0 },
+
+    // 3. 같은 색 동시치기 (2번 그린 + 5번 그린 동타)
+    { time: 3000, lane: 1, type: 'tap', holdDuration: 0 },
+    { time: 3000, lane: 4, type: 'tap', holdDuration: 0 },
+
+    // 4. 단독 롱노트 (3번 블루 레인, 1.2초 길이)
+    { time: 3700, lane: 2, type: 'hold', holdDuration: 1200 },
+
+    // 5. 동색 롱잡 패턴 (1번 레드 롱노트를 누른 상태에서 4번 레드 단노트 2번 연타!)
+    { time: 5400, lane: 0, type: 'hold', holdDuration: 1400 },
+    { time: 5900, lane: 3, type: 'tap', holdDuration: 0 },
+    { time: 6400, lane: 3, type: 'tap', holdDuration: 0 },
+
+    // 6. 동색 롱노트 동시치기 (파랑 3번 + 파랑 6번 동시 롱노트)
+    { time: 7200, lane: 2, type: 'hold', holdDuration: 1000 },
+    { time: 7200, lane: 5, type: 'hold', holdDuration: 1000 }
   ];
-  let patternLoopTime = 6000; // 6초마다 패턴 반복
-  let lastPatternCycle = 0;
+  const patternLoopTime = 9000; // 9초마다 종합 패턴 반복
+  let lastPatternCycle = -1;
 
   function spawnChartNotes(now) {
     const elapsed = now - songStartTime;
@@ -185,7 +200,9 @@
           holdDuration: p.holdDuration,
           hit: false,
           holding: false,
-          completed: false
+          heldByKey: null, // 어떤 버튼(keyIndex)으로 이 롱노트를 잡고 있는지 기록
+          completed: false,
+          missed: false
         });
       });
     }
@@ -228,33 +245,53 @@
   sliderTrack.addEventListener('pointerup', endSliderTouch);
   sliderTrack.addEventListener('pointercancel', endSliderTouch);
 
-  // 버튼 누름 처리 (동시치기 및 롱노트 판정)
-  function handleButtonDown(keyIndex) {
-    const colorType = getButtonColorType(keyIndex);
-    if (!colorType) return;
-    activeButtons[colorType] = true;
-
-    const targetLanes = COLOR_BUTTON_LANES[colorType];
-    targetLanes.forEach(lane => laneFlash[lane] = 1.0);
-
-    const now = performance.now();
-    const FRAME_MS = 1000 / 60;
-    const judgeY = canvas.height * 0.90;
+  function getTrackMetrics(y) {
     const topY = 0;
+    const judgeY = canvas.height * 0.90;
     const topWidth = canvas.width * 0.22;
     const bottomWidth = canvas.width * 0.84;
     const centerX = canvas.width / 2;
+    const p = Math.max(0, Math.min(1, (y - topY) / (judgeY - topY)));
+    const currentWidth = topWidth + (bottomWidth - topWidth) * p;
+    return {
+      left: centerX - currentWidth / 2,
+      right: centerX + currentWidth / 2,
+      width: currentWidth
+    };
+  }
 
-    function getTrackMetrics(y) {
-      const p = Math.max(0, Math.min(1, (y - topY) / (judgeY - topY)));
-      const currentWidth = topWidth + (bottomWidth - topWidth) * p;
-      return { left: centerX - currentWidth / 2, width: currentWidth };
-    }
+  // 타격 이펙트 생성 함수
+  function spawnHitEffect(lane, color) {
+    const judgeY = canvas.height * 0.90;
+    const m = getTrackMetrics(judgeY);
+    const laneX = m.left + m.width * LANE_RATIOS[lane];
+    hitEffects.push({
+      x: laneX,
+      y: judgeY,
+      color: color,
+      radius: 10,
+      maxRadius: 48,
+      alpha: 1.0
+    });
+  }
 
-    // 판정선 근처의 가장 가까운 노트 탐색 (동시치기 대응 우선순위 정렬)
+  // 버튼 누름 처리 (동색 동시치기 + 동색 롱잡 완벽 분리)
+  function handleButtonDown(keyIndex) {
+    if (pressedKeys[keyIndex]) return;
+    pressedKeys[keyIndex] = true;
+
+    const colorType = getButtonColorType(keyIndex);
+    if (!colorType) return;
+
+    const targetLanes = COLOR_BUTTON_LANES[colorType];
+    const now = performance.now();
+    const FRAME_MS = 1000 / 60;
+    const judgeY = canvas.height * 0.90;
+
+    // 아직 판정되지 않은 노트 중 가장 판정선에 가까운 노트 1개 탐색
     let candidates = [];
     for (let note of notes) {
-      if (!note.hit && targetLanes.includes(note.lane)) {
+      if (!note.hit && !note.missed && targetLanes.includes(note.lane)) {
         const diff = Math.abs(now - note.targetTime);
         if (diff <= 8 * FRAME_MS) {
           candidates.push({ note, diff });
@@ -263,47 +300,75 @@
     }
 
     if (candidates.length > 0) {
-      candidates.sort((a, b) => a.diff - b.diff);
+      // 판정선에 가장 가까운 노트 우선, 동시치기일 경우 누른 버튼 위치(좌/우)와 가까운 레인 우선
+      candidates.sort((a, b) => {
+        if (Math.abs(a.diff - b.diff) < 5) {
+          const isLeftBtn = keyIndex <= 3;
+          const aIsLeft = a.note.lane <= 2;
+          return (isLeftBtn === aIsLeft) ? -1 : 1;
+        }
+        return a.diff - b.diff;
+      });
+
       let bestMatch = candidates[0].note;
       bestMatch.hit = true;
+      laneFlash[bestMatch.lane] = 1.0;
 
       if (bestMatch.type === 'hold') {
         bestMatch.holding = true;
+        bestMatch.heldByKey = keyIndex; // 이 롱노트를 담당하는 특정 버튼 ID 저장
       }
-      processJudge(bestMatch, candidates[0].diff, judgeY, getTrackMetrics);
+      spawnHitEffect(bestMatch.lane, LANE_COLORS[bestMatch.lane]);
+      processJudge(bestMatch, candidates[0].diff, judgeY);
+    } else {
+      // 빈 입력 시 해당 색상 레인 살짝 점등
+      targetLanes.forEach(l => laneFlash[l] = Math.max(laneFlash[l], 0.4));
     }
   }
 
+  // 버튼 뗌 처리 (다른 버튼이 유지 중인 롱노트는 건드리지 않음)
   function handleButtonUp(keyIndex) {
-    const colorType = getButtonColorType(keyIndex);
-    if (!colorType) return;
-    activeButtons[colorType] = false;
-
-    const targetLanes = COLOR_BUTTON_LANES[colorType];
+    pressedKeys[keyIndex] = false;
     const now = performance.now();
+    const judgeY = canvas.height * 0.90;
 
     notes.forEach(note => {
-      if (note.type === 'hold' && note.holding && targetLanes.includes(note.lane)) {
+      if (note.type === 'hold' && note.holding && note.heldByKey === keyIndex) {
         const holdEndTime = note.targetTime + note.holdDuration;
-        // 꼬리 부분 도달 직전이나 도달 후 뗄 때 판정
-        if (now >= holdEndTime - 120) {
+        // 꼬리 부분(±140ms)에서 떼면 정상 완주 판정
+        if (now >= holdEndTime - 140) {
           note.holding = false;
           note.completed = true;
-          note.hit = true;
           score += 800;
           combo++;
           scoreVal.textContent = score.toLocaleString();
+          spawnHitEffect(note.lane, LANE_COLORS[note.lane]);
+          
+          const m = getTrackMetrics(judgeY);
+          const laneX = m.left + m.width * LANE_RATIOS[note.lane];
+          judgePopups.push({
+            x: laneX, y: judgeY - 50,
+            lines: ['CRITICAL', 'BREAK'], color: '#ffd700',
+            combo: combo > 1 ? combo : null, alpha: 1.0, scale: 1.15
+          });
         } else {
-          // 너무 일찍 떼면 실패 처리
+          // 중간에 너무 일찍 떼면 MISS 처리
           note.holding = false;
-          note.hit = true;
+          note.missed = true;
           combo = 0;
+          const m = getTrackMetrics(judgeY);
+          const laneX = m.left + m.width * LANE_RATIOS[note.lane];
+          judgePopups.push({
+            x: laneX, y: judgeY - 50,
+            lines: ['MISS'], color: '#888888',
+            combo: null, alpha: 1.0, scale: 1.0
+          });
         }
       }
     });
   }
 
-  function processJudge(note, minDiff, judgeY, getTrackMetrics) {
+  function processJudge(note, minDiff, judgeY) {
     let textLines = [];
     let color = '#fff';
     let addScore = 0;
@@ -355,7 +420,7 @@
       btn.classList.add('active');
       handleButtonDown(keyIdx);
     });
-    const release = (e) => {
+    const release = () => {
       btn.classList.remove('active');
       handleButtonUp(keyIdx);
     };
@@ -383,6 +448,15 @@
     }
   });
 
+  // 시간을 Y좌표(원근감 적용)로 변환하는 헬퍼 함수
+  function getNoteY(targetTime, now, travelDuration, topY, judgeY) {
+    const timeLeft = targetTime - now;
+    const linearProgress = 1 - (timeLeft / travelDuration);
+    if (linearProgress <= 0) return topY;
+    const visualProgress = Math.pow(linearProgress, 2.1);
+    return topY + (judgeY - topY) * visualProgress;
+  }
+
   function loop() {
     const now = performance.now();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -391,23 +465,10 @@
 
     const topY = 0;
     const judgeY = canvas.height * 0.90;     
-    const topWidth = canvas.width * 0.22;    
-    const bottomWidth = canvas.width * 0.84; 
-    const centerX = canvas.width / 2;
-
-    function getTrackMetrics(y) {
-      const p = Math.max(0, Math.min(1, (y - topY) / (judgeY - topY)));
-      const currentWidth = topWidth + (bottomWidth - topWidth) * p;
-      return {
-        left: centerX - currentWidth / 2,
-        right: centerX + currentWidth / 2,
-        width: currentWidth
-      };
-    }
-
     const topM = getTrackMetrics(topY);
     const bottomM = getTrackMetrics(judgeY);
 
+    // 1. 트랙 배경
     ctx.fillStyle = 'rgba(10, 10, 22, 0.92)';
     ctx.beginPath();
     ctx.moveTo(topM.left, topY);
@@ -417,6 +478,7 @@
     ctx.closePath();
     ctx.fill();
 
+    // 2. 6개 컬러 레인 가이드 선
     for (let i = 0; i < 6; i++) {
       const ratio = LANE_RATIOS[i];
       ctx.strokeStyle = LANE_COLORS[i];
@@ -433,6 +495,7 @@
     }
     ctx.globalAlpha = 1.0;
 
+    // 사이드 벽 선
     ctx.strokeStyle = '#b53471';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -445,91 +508,123 @@
     const travelDuration = (BASE_NOTE_TRAVEL_TIME * 1000) / noteSpeedMultiplier;
     const FRAME_MS = 1000 / 60;
 
+    // 3. 노트 렌더링 및 상태 업데이트
     for (let i = notes.length - 1; i >= 0; i--) {
       const note = notes[i];
-      
-      // 롱노트 유지 중 상태 처리 및 자동 완주 판정
+
+      // 롱노트 홀드 중일 때 완주 체크 & 유지 이펙트
       if (note.type === 'hold' && note.holding) {
-        const colorType = getButtonColorType(note.lane === 0 || note.lane === 3 ? 1 : (note.lane === 1 || note.lane === 4 ? 2 : 3));
-        if (!activeButtons[colorType]) {
-          note.holding = false;
-          note.hit = true;
-          combo = 0;
-          continue;
-        }
+        laneFlash[note.lane] = 0.8;
+        if (Math.random() < 0.35) spawnHitEffect(note.lane, LANE_COLORS[note.lane]);
+
         if (now >= note.targetTime + note.holdDuration) {
           note.holding = false;
           note.completed = true;
-          note.hit = true;
           score += 800;
           combo++;
           scoreVal.textContent = score.toLocaleString();
-          continue;
+          spawnHitEffect(note.lane, LANE_COLORS[note.lane]);
         }
       }
 
-      if (note.hit && !note.holding) {
+      // 이미 처리 완료되었거나 미스난 노트 제거
+      if ((note.type === 'tap' && note.hit) || note.completed || note.missed) {
         notes.splice(i, 1);
         continue;
       }
 
       const timeLeft = note.targetTime - now;
 
-      // 판정선을 지나쳐버린 노트 미스 처리
+      // 누르지 않고 지나쳐버린 노트 MISS 처리 (롱노트 시작점 포함)
       if (timeLeft < -8 * FRAME_MS && !note.holding) {
+        note.missed = true;
         combo = 0;
-        const m = getTrackMetrics(judgeY);
-        const laneX = m.left + m.width * LANE_RATIOS[note.lane];
+        const laneX = bottomM.left + bottomM.width * LANE_RATIOS[note.lane];
         judgePopups.push({
-          x: laneX,
-          y: judgeY - 50,
-          lines: ['MISS'],
-          color: '#888888',
-          combo: null,
-          alpha: 1.0,
-          scale: 1.0
+          x: laneX, y: judgeY - 50,
+          lines: ['MISS'], color: '#888888',
+          combo: null, alpha: 1.0, scale: 1.0
         });
         notes.splice(i, 1);
         continue;
       }
 
+      // 아직 화면에 진입하지 않은 노트는 건너뜀
       if (timeLeft > travelDuration) continue;
 
-      const linearProgress = 1 - (timeLeft / travelDuration);
-      const visualProgress = Math.pow(Math.max(0, linearProgress), 2.1);
-      const currentY = topY + (judgeY - topY) * visualProgress;
-
-      const m = getTrackMetrics(currentY);
-      const ratio = LANE_RATIOS[note.lane];
-      const noteCenterX = m.left + m.width * ratio;
       const noteColor = LANE_COLORS[note.lane];
+      const ratio = LANE_RATIOS[note.lane];
 
       if (note.type === 'hold') {
-        const holdWidth = m.width / 9;
-        const holdHeight = 16;
-        const hx1 = noteCenterX - holdWidth / 2;
-        const hx2 = noteCenterX + holdWidth / 2;
-        const hy1 = currentY - holdHeight;
+        // 롱노트 머리(시작점) Y좌표: 홀드 중이면 판정선(judgeY)에 고정
+        const headY = note.holding ? judgeY : getNoteY(note.targetTime, now, travelDuration, topY, judgeY);
+        // 롱노트 꼬리(끝점) Y좌표
+        const tailTime = note.targetTime + note.holdDuration;
+        const tailY = (tailTime - now > travelDuration) ? topY : getNoteY(tailTime, now, travelDuration, topY, judgeY);
 
-        ctx.fillStyle = noteColor;
-        ctx.fillRect(hx1, hy1, holdWidth, holdHeight);
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(hx1, hy1, holdWidth, holdHeight);
+        if (headY > tailY) {
+          const mHead = getTrackMetrics(headY);
+          const mTail = getTrackMetrics(tailY);
 
-        // 세로 하얀 하이라이트 선
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 2.5;
-        ctx.beginPath();
-        ctx.moveTo(noteCenterX, hy1 + 3);
-        ctx.lineTo(noteCenterX, hy1 + holdHeight - 3);
-        ctx.stroke();
+          const headCenterX = mHead.left + mHead.width * ratio;
+          const tailCenterX = mTail.left + mTail.width * ratio;
 
-        if (note.holding) {
+          // 단노트(1/8)보다 살짝 얇은 폭 (1/9.5)
+          const headW = mHead.width / 9.5;
+          const tailW = mTail.width / 9.5;
+
+          // 롱노트 몸통 (원근감 사다리꼴 리본)
           ctx.fillStyle = noteColor;
-          ctx.fillRect(hx1, hy1, holdWidth, judgeY - currentY);
+          ctx.globalAlpha = note.holding ? 0.95 : 0.75;
+          ctx.beginPath();
+          ctx.moveTo(tailCenterX - tailW / 2, tailY);
+          ctx.lineTo(tailCenterX + tailW / 2, tailY);
+          ctx.lineTo(headCenterX + headW / 2, headY);
+          ctx.lineTo(headCenterX - headW / 2, headY);
+          ctx.closePath();
+          ctx.fill();
+
+          // 몸통 외곽선
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 1.5;
+          ctx.stroke();
+          ctx.globalAlpha = 1.0;
+
+          // ★ 롱노트 몸통 중앙의 세로 하얀색 하이라이트 선
+          ctx.strokeStyle = '#ffffff';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.moveTo(tailCenterX, tailY + 2);
+          ctx.lineTo(headCenterX, headY - 2);
+          ctx.stroke();
+
+          // 롱노트 시작점(머리) 블록 (홀드 중이 아닐 때만 표시)
+          if (!note.holding) {
+            const headH = 16;
+            ctx.fillStyle = noteColor;
+            ctx.fillRect(headCenterX - headW / 2, headY - headH, headW, headH);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.strokeRect(headCenterX - headW / 2, headY - headH, headW, headH);
+          }
+
+          // 롱노트 끝점(꼬리/떼는 부분): 단노트 모양이되 하얀 하이라이트 없이 마감
+          if (tailTime - now <= travelDuration) {
+            const tailBrickW = mTail.width / 8;
+            const tailBrickH = 14;
+            ctx.fillStyle = noteColor;
+            ctx.fillRect(tailCenterX - tailBrickW / 2, tailY - tailBrickH / 2, tailBrickW, tailBrickH);
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(tailCenterX - tailBrickW / 2, tailY - tailBrickH / 2, tailBrickW, tailBrickH);
+          }
         }
       } else {
+        // 일반 단노트 (가로 1/8 크기, 중앙 가로 하얀색 하이라이트)
+        const currentY = getNoteY(note.targetTime, now, travelDuration, topY, judgeY);
+        const m = getTrackMetrics(currentY);
+        const noteCenterX = m.left + m.width * ratio;
+
         const brickWidth = m.width / 8;
         const brickHeight = 18;
         const x1 = noteCenterX - brickWidth / 2;
@@ -552,6 +647,7 @@
       }
     }
 
+    // 4. 판정선
     ctx.strokeStyle = '#e94560';
     ctx.lineWidth = 4;
     ctx.beginPath();
@@ -559,6 +655,36 @@
     ctx.lineTo(bottomM.right, judgeY);
     ctx.stroke();
 
+    // 5. 타격 이펙트 렌더링 (노트 쳤을 때 퍼지는 링 & 스파크)
+    for (let i = hitEffects.length - 1; i >= 0; i--) {
+      let ef = hitEffects[i];
+      ctx.save();
+      ctx.globalAlpha = ef.alpha;
+      
+      // 외곽 확산 링
+      ctx.strokeStyle = ef.color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.arc(ef.x, ef.y, ef.radius, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // 내부 하얀 섬광 링
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(ef.x, ef.y, ef.radius * 0.65, 0, Math.PI * 2);
+      ctx.stroke();
+
+      ctx.restore();
+
+      ef.radius += 2.8;
+      ef.alpha -= 0.06;
+      if (ef.alpha <= 0) {
+        hitEffects.splice(i, 1);
+      }
+    }
+
+    // 6. 판정 및 콤보수 텍스트 렌더링
     for (let i = judgePopups.length - 1; i >= 0; i--) {
       let p = judgePopups[i];
       ctx.save();
@@ -595,6 +721,7 @@
       }
     }
 
+    // 7. 캐릭터
     const charX = playerX * canvas.width;
     ctx.fillStyle = '#00ffcc';
     ctx.beginPath();
