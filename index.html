@@ -130,13 +130,27 @@
 
   let score = 0;
   let combo = 0;
-  // 각 레인별로 처리된 노트 바로 위에 뜰 판정 팝업 관리 배열
   let judgePopups = []; 
   let laneFlash = [0, 0, 0, 0, 0, 0];
+  let activeButtons = { red: false, green: false, blue: false };
 
   const LANE_COLORS = ['#ff4757', '#2ed573', '#1e90ff', '#ff4757', '#2ed573', '#1e90ff'];
   const LANE_RATIOS = [1/7, 2/7, 3/7, 4/7, 5/7, 6/7];
 
+  const COLOR_BUTTON_LANES = {
+    'red': [0, 3],
+    'green': [1, 4],
+    'blue': [2, 5]
+  };
+
+  function getButtonColorType(keyIndex) {
+    if (keyIndex === 1 || keyIndex === 4) return 'red';
+    if (keyIndex === 2 || keyIndex === 5) return 'green';
+    if (keyIndex === 3 || keyIndex === 6) return 'blue';
+    return null;
+  }
+
+  // 노트 데이터 구조: type ('tap' 또는 'hold'), holdDuration (롱노트 길이 ms)
   let notes = [];
   let lastSpawnTime = 0;
 
@@ -177,59 +191,16 @@
   sliderTrack.addEventListener('pointerup', endSliderTouch);
   sliderTrack.addEventListener('pointercancel', endSliderTouch);
 
-  function triggerButtonInput(keyIndex) {
-    if (keyIndex >= 1 && keyIndex <= 6) {
-      const lane = keyIndex - 1;
-      laneFlash[lane] = 1.0;
-      judgeNote(lane);
-    }
-  }
+  // 버튼 누름 처리 (동시치기 및 롱노트 유지 지원)
+  function handleButtonDown(keyIndex) {
+    const colorType = getButtonColorType(keyIndex);
+    if (!colorType) return;
+    activeButtons[colorType] = true;
 
-  buttons.forEach(btn => {
-    btn.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      btn.classList.add('active');
-      triggerButtonInput(Number(btn.dataset.key));
-    });
-    const release = () => btn.classList.remove('active');
-    btn.addEventListener('pointerup', release);
-    btn.addEventListener('pointerleave', release);
-    btn.addEventListener('pointercancel', release);
-  });
+    const targetLanes = COLOR_BUTTON_LANES[colorType];
+    targetLanes.forEach(lane => laneFlash[lane] = 1.0);
 
-  const KEY_MAP = { 'a': 1, 's': 2, 'd': 3, 'j': 4, 'k': 5, 'l': 6 };
-  window.addEventListener('keydown', (e) => {
-    if (e.repeat) return;
-    const keyIdx = KEY_MAP[e.key.toLowerCase()];
-    if (keyIdx) {
-      const btnEl = document.querySelector(`.btn[data-key="${keyIdx}"]`);
-      if (btnEl) btnEl.classList.add('active');
-      triggerButtonInput(keyIdx);
-    }
-  });
-  window.addEventListener('keyup', (e) => {
-    const keyIdx = KEY_MAP[e.key.toLowerCase()];
-    if (keyIdx) {
-      const btnEl = document.querySelector(`.btn[data-key="${keyIdx}"]`);
-      if (btnEl) btnEl.classList.remove('active');
-    }
-  });
-
-  function judgeNote(lane) {
     const now = performance.now();
-    let targetNote = null;
-    let minDiff = Infinity;
-
-    for (let note of notes) {
-      if (!note.hit && note.lane === lane) {
-        const diff = Math.abs(now - note.targetTime);
-        if (diff < minDiff) {
-          minDiff = diff;
-          targetNote = note;
-        }
-      }
-    }
-
     const FRAME_MS = 1000 / 60;
     const judgeY = canvas.height * 0.90;
     const topY = 0;
@@ -243,64 +214,150 @@
       return { left: centerX - currentWidth / 2, width: currentWidth };
     }
 
-    if (targetNote && minDiff <= 8 * FRAME_MS) {
-      targetNote.hit = true;
-      let textLines = [];
-      let color = '#fff';
-      let addScore = 0;
+    // 판정선 근처의 탭 노트 또는 롱노트 시작점 탐색
+    let bestNote = null;
+    let minDiff = Infinity;
 
-      if (minDiff <= 1 * FRAME_MS) {
-        textLines = ['PLATINUM', 'BREAK'];
-        color = '#00ffcc';
-        addScore = 1200;
-        combo++;
-      } else if (minDiff <= 2 * FRAME_MS) {
-        textLines = ['CRITICAL', 'BREAK'];
-        color = '#ffd700';
-        addScore = 1000;
-        combo++;
-      } else if (minDiff <= 4 * FRAME_MS) {
-        textLines = ['BREAK'];
-        color = '#ff4757';
-        addScore = 700;
-        combo++;
-      } else {
-        textLines = ['HIT'];
-        color = '#2ed573';
-        addScore = 400;
-        combo++;
+    for (let note of notes) {
+      if (!note.hit && targetLanes.includes(note.lane)) {
+        const diff = Math.abs(now - note.targetTime);
+        if (diff < minDiff) {
+          minDiff = diff;
+          bestNote = note;
+        }
       }
+    }
 
-      score += addScore + (combo * 10);
-      scoreVal.textContent = score.toLocaleString();
-
-      // 해당 레인 위치 계산
-      const m = getTrackMetrics(judgeY);
-      const laneX = m.left + m.width * LANE_RATIOS[lane];
-
-      judgePopups.push({
-        x: laneX,
-        y: judgeY - 30, // 노트 바로 위
-        lines: textLines,
-        color: color,
-        combo: combo > 1 ? combo : null,
-        alpha: 1.0,
-        scale: 1.2
-      });
+    if (bestNote && minDiff <= 8 * FRAME_MS) {
+      bestNote.hit = true;
+      if (bestNote.type === 'hold') {
+        bestNote.holding = true;
+      }
+      processJudge(bestNote, minDiff, judgeY, getTrackMetrics);
     }
   }
+
+  function handleButtonUp(keyIndex) {
+    const colorType = getButtonColorType(keyIndex);
+    if (!colorType) return;
+    activeButtons[colorType] = false;
+
+    // 해당 색상의 버튼을 뗄 때, 진행 중이던 롱노트가 있다면 판정 처리
+    const targetLanes = COLOR_BUTTON_LANES[colorType];
+    notes.forEach(note => {
+      if (note.type === 'hold' && note.holding && targetLanes.includes(note.lane)) {
+        const now = performance.now();
+        if (now >= note.targetTime + note.holdDuration - 150) {
+          note.completed = true;
+          score += 800;
+          combo++;
+          scoreVal.textContent = score.toLocaleString();
+        } else {
+          // 너무 일찍 떼면 MISS
+          combo = 0;
+        }
+        note.holding = false;
+        note.hit = true;
+      }
+    });
+  }
+
+  function processJudge(note, minDiff, judgeY, getTrackMetrics) {
+    let textLines = [];
+    let color = '#fff';
+    let addScore = 0;
+    const FRAME_MS = 1000 / 60;
+
+    if (minDiff <= 1 * FRAME_MS) {
+      textLines = ['PLATINUM', 'BREAK'];
+      color = '#00ffcc';
+      addScore = 1200;
+      combo++;
+    } else if (minDiff <= 2 * FRAME_MS) {
+      textLines = ['CRITICAL', 'BREAK'];
+      color = '#ffd700';
+      addScore = 1000;
+      combo++;
+    } else if (minDiff <= 4 * FRAME_MS) {
+      textLines = ['BREAK'];
+      color = '#ff4757';
+      addScore = 700;
+      combo++;
+    } else {
+      textLines = ['HIT'];
+      color = '#2ed573';
+      addScore = 400;
+      combo++;
+    }
+
+    score += addScore + (combo * 10);
+    scoreVal.textContent = score.toLocaleString();
+
+    const m = getTrackMetrics(judgeY);
+    const laneX = m.left + m.width * LANE_RATIOS[note.lane];
+
+    judgePopups.push({
+      x: laneX,
+      y: judgeY - 50,
+      lines: textLines,
+      color: color,
+      combo: combo > 1 ? combo : null,
+      alpha: 1.0,
+      scale: 1.2
+    });
+  }
+
+  buttons.forEach(btn => {
+    const keyIdx = Number(btn.dataset.key);
+    btn.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      btn.classList.add('active');
+      handleButtonDown(keyIdx);
+    });
+    const release = (e) => {
+      btn.classList.remove('active');
+      handleButtonUp(keyIdx);
+    };
+    btn.addEventListener('pointerup', release);
+    btn.addEventListener('pointerleave', release);
+    btn.addEventListener('pointercancel', release);
+  });
+
+  const KEY_MAP = { 'a': 1, 's': 2, 'd': 3, 'j': 4, 'k': 5, 'l': 6 };
+  window.addEventListener('keydown', (e) => {
+    if (e.repeat) return;
+    const keyIdx = KEY_MAP[e.key.toLowerCase()];
+    if (keyIdx) {
+      const btnEl = document.querySelector(`.btn[data-key="${keyIdx}"]`);
+      if (btnEl) btnEl.classList.add('active');
+      handleButtonDown(keyIdx);
+    }
+  });
+  window.addEventListener('keyup', (e) => {
+    const keyIdx = KEY_MAP[e.key.toLowerCase()];
+    if (keyIdx) {
+      const btnEl = document.querySelector(`.btn[data-key="${keyIdx}"]`);
+      if (btnEl) btnEl.classList.remove('active');
+      handleButtonUp(keyIdx);
+    }
+  });
 
   function loop() {
     const now = performance.now();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    if (now - lastSpawnTime > 450) {
+    // 테스트용 노트 자동 생성기 (탭 노트 및 롱노트 혼합 생성)
+    if (now - lastSpawnTime > 500) {
       lastSpawnTime = now;
       const randomLane = Math.floor(Math.random() * 6);
+      const isHold = Math.random() > 0.6; // 40% 확률로 롱노트 생성
       notes.push({
         targetTime: now + 2500,
         lane: randomLane,
-        hit: false
+        type: isHold ? 'hold' : 'tap',
+        holdDuration: isHold ? 800 : 0, // 롱노트 유지 시간 (ms)
+        hit: false,
+        holding: false
       });
     }
 
@@ -362,20 +419,38 @@
 
     for (let i = notes.length - 1; i >= 0; i--) {
       const note = notes[i];
-      if (note.hit) {
+      
+      // 롱노트 유지 중 처리
+      if (note.type === 'hold' && note.holding) {
+        const colorType = getButtonColorType(note.lane === 0 || note.lane === 3 ? 1 : (note.lane === 1 || note.lane === 4 ? 2 : 3));
+        if (!activeButtons[colorType]) {
+          // 손을 떼면 롱노트 실패 처리
+          note.holding = false;
+          note.hit = true;
+          combo = 0;
+          continue;
+        }
+        if (now >= note.targetTime + note.holdDuration) {
+          note.holding = false;
+          note.hit = true;
+          continue;
+        }
+      }
+
+      if (note.hit && !note.holding) {
         notes.splice(i, 1);
         continue;
       }
 
       const timeLeft = note.targetTime - now;
 
-      if (timeLeft < -8 * FRAME_MS) {
+      if (timeLeft < -8 * FRAME_MS && !note.holding) {
         combo = 0;
         const m = getTrackMetrics(judgeY);
         const laneX = m.left + m.width * LANE_RATIOS[note.lane];
         judgePopups.push({
           x: laneX,
-          y: judgeY - 30,
+          y: judgeY - 50,
           lines: ['MISS'],
           color: '#888888',
           combo: null,
@@ -396,29 +471,57 @@
       const ratio = LANE_RATIOS[note.lane];
       const noteCenterX = m.left + m.width * ratio;
 
-      const brickWidth = m.width / 8;
-      const brickHeight = 18;
-
-      const x1 = noteCenterX - brickWidth / 2;
-      const x2 = noteCenterX + brickWidth / 2;
-      const y1 = currentY - brickHeight;
-      const y2 = currentY;
       const noteColor = LANE_COLORS[note.lane];
 
-      ctx.fillStyle = noteColor;
-      ctx.fillRect(x1, y1, brickWidth, brickHeight);
+      if (note.type === 'hold') {
+        // ★ 롱노트 디자인: 단노트보다 살짝 얇은 가로 폭 (1/9 크기), 세로 하얀 하이라이트
+        const holdWidth = m.width / 9;
+        const holdHeight = 16;
+        const hx1 = noteCenterX - holdWidth / 2;
+        const hx2 = noteCenterX + holdWidth / 2;
+        const hy1 = currentY - holdHeight;
 
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(x1, y1, brickWidth, brickHeight);
+        ctx.fillStyle = noteColor;
+        ctx.fillRect(hx1, hy1, holdWidth, holdHeight);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(hx1, hy1, holdWidth, holdHeight);
 
-      const halfY = y1 + brickHeight * 0.5;
-      ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      ctx.moveTo(x1 + 3, halfY);
-      ctx.lineTo(x2 - 3, halfY);
-      ctx.stroke();
+        // 세로 하얀 하이라이트 선
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(noteCenterX, hy1 + 3);
+        ctx.lineTo(noteCenterX, hy1 + holdHeight - 3);
+        ctx.stroke();
+
+        // 롱노트 바디(꼬리 부분: 때는 부분은 단노트 모양이되 하이라이트 없음)
+        if (note.holding) {
+          ctx.fillStyle = noteColor;
+          ctx.fillRect(hx1, hy1, holdWidth, judgeY - currentY);
+        }
+      } else {
+        // 일반 단노트 (가로 1/8 크기, 가로 하이라이트)
+        const brickWidth = m.width / 8;
+        const brickHeight = 18;
+        const x1 = noteCenterX - brickWidth / 2;
+        const x2 = noteCenterX + brickWidth / 2;
+        const y1 = currentY - brickHeight;
+
+        ctx.fillStyle = noteColor;
+        ctx.fillRect(x1, y1, brickWidth, brickHeight);
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(x1, y1, brickWidth, brickHeight);
+
+        const halfY = y1 + brickHeight * 0.5;
+        ctx.strokeStyle = '#ffffff';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.moveTo(x1 + 3, halfY);
+        ctx.lineTo(x2 - 3, halfY);
+        ctx.stroke();
+      }
     }
 
     ctx.strokeStyle = '#e94560';
@@ -428,35 +531,35 @@
     ctx.lineTo(bottomM.right, judgeY);
     ctx.stroke();
 
-    // 판정 및 콤보수 렌더링 (노트 바로 위 위치)
     for (let i = judgePopups.length - 1; i >= 0; i--) {
       let p = judgePopups[i];
       ctx.save();
       ctx.globalAlpha = p.alpha;
       ctx.textAlign = 'center';
       
-      // 판정 텍스트 (크리티컬/플래티넘은 2줄)
-      ctx.fillStyle = p.color;
-      ctx.font = `bold ${Math.round(15 * p.scale)}px sans-serif`;
-      
       if (p.lines.length === 2) {
-        ctx.fillText(p.lines[0], p.x, p.y - 12);
-        ctx.fillText(p.lines[1], p.x, p.y);
+        ctx.fillStyle = p.color;
+        ctx.font = `bold ${Math.round(12 * p.scale)}px sans-serif`;
+        ctx.fillText(p.lines[0], p.x, p.y - 14);
+        
+        ctx.font = `bold ${Math.round(17 * p.scale)}px sans-serif`;
+        ctx.fillText(p.lines[1], p.x, p.y + 4);
       } else {
-        ctx.fillText(p.lines[0], p.x, p.y - 6);
+        ctx.fillStyle = p.color;
+        ctx.font = `bold ${Math.round(16 * p.scale)}px sans-serif`;
+        ctx.fillText(p.lines[0], p.x, p.y - 4);
       }
 
-      // 콤보수 (숫자만 표시)
       if (p.combo !== null) {
         ctx.fillStyle = '#ffffff';
-        ctx.font = `bold ${Math.round(20 * p.scale)}px sans-serif`;
-        ctx.fillText(p.combo, p.x, p.y + 20);
+        ctx.font = `bold ${Math.round(21 * p.scale)}px sans-serif`;
+        ctx.fillText(p.combo, p.x, p.y + 26);
       }
 
       ctx.restore();
 
-      p.alpha -= 0.03;
-      p.y -= 0.6; // 위로 살짝 떠오르는 애니메이션
+      p.alpha -= 0.025;
+      p.y -= 0.5;
       p.scale = Math.max(1.0, p.scale - 0.01);
 
       if (p.alpha <= 0) {
