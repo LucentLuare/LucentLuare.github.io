@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>6-Lane Bullet Rhythm</title>
+  <title>3-Lane Slope Rhythm</title>
   <style>
     * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
     body {
@@ -15,29 +15,38 @@
       height: 100vh; max-height: 177.78vw;
       background: #1a1a2e; display: flex; flex-direction: column; border: 2px solid #333;
     }
-    #play-area { flex: 65; position: relative; width: 100%; }
+    #play-area { flex: 65; position: relative; width: 100%; overflow: hidden; }
     canvas { width: 100%; height: 100%; display: block; }
     #controller-area {
       flex: 35; background: #16213e; display: flex; flex-direction: column; padding: 8px; gap: 8px;
     }
+    /* 슬라이더 영역 */
     #slider-track {
       flex: 25; background: #0f3460; border-radius: 12px; position: relative; border: 2px solid #e94560;
+      overflow: hidden;
     }
     #slider-knob {
-      width: 40px; height: 100%; background: #e94560; border-radius: 10px;
+      width: 48px; height: 100%; background: #e94560; border-radius: 10px;
       position: absolute; left: 50%; transform: translateX(-50%); pointer-events: none;
+      display: flex; justify-content: center; align-items: center; color: white; font-size: 10px; font-weight: bold;
     }
+    /* 8개 버튼 그리드 (RGBRGB + 사이드) */
     #button-grid {
       flex: 75; display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px;
     }
     .btn {
-      background: #222; border: 2px solid #555; border-radius: 8px; color: white;
+      background: #1e1e24; border: 2px solid #555; border-radius: 8px; color: white;
       display: flex; justify-content: center; align-items: center; font-weight: bold; font-size: 12px;
+      transition: background-color 0.05s, box-shadow 0.05s;
     }
-    .btn.active { background: #e94560; border-color: #fff; }
-    .btn-side { background: #3a1c71; border-color: #d76d77; }
-    .btn-l { border-color: #ff4b5c; }
-    .btn-r { border-color: #056674; }
+    .btn-side { background: #2c163b; border-color: #b53471; color: #f8a5c2; }
+    .btn-side.active { background: #b53471; border-color: #fff; color: #fff; box-shadow: 0 0 12px #b53471; }
+    .btn-red { background: #3b1419; border-color: #ff4757; color: #ff6b81; }
+    .btn-red.active { background: #ff4757; border-color: #fff; color: #fff; box-shadow: 0 0 12px #ff4757; }
+    .btn-green { background: #113320; border-color: #2ed573; color: #7bed9f; }
+    .btn-green.active { background: #2ed573; border-color: #fff; color: #111; box-shadow: 0 0 12px #2ed573; }
+    .btn-blue { background: #102542; border-color: #1e90ff; color: #70a1ff; }
+    .btn-blue.active { background: #1e90ff; border-color: #fff; color: #fff; box-shadow: 0 0 12px #1e90ff; }
   </style>
 </head>
 <body>
@@ -48,16 +57,16 @@
   </div>
   <div id="controller-area">
     <div id="slider-track">
-      <div id="slider-knob"></div>
+      <div id="slider-knob">◀ ▶</div>
     </div>
     <div id="button-grid">
       <div class="btn btn-side" data-key="0">L-S</div>
-      <div class="btn btn-l" data-key="1">1</div>
-      <div class="btn btn-l" data-key="2">2</div>
-      <div class="btn btn-l" data-key="3">3</div>
-      <div class="btn btn-r" data-key="4">4</div>
-      <div class="btn btn-r" data-key="5">5</div>
-      <div class="btn btn-r" data-key="6">6</div>
+      <div class="btn btn-red" data-key="1">1</div>
+      <div class="btn btn-green" data-key="2">2</div>
+      <div class="btn btn-blue" data-key="3">3</div>
+      <div class="btn btn-red" data-key="4">4</div>
+      <div class="btn btn-green" data-key="5">5</div>
+      <div class="btn btn-blue" data-key="6">6</div>
       <div class="btn btn-side" data-key="7">R-S</div>
     </div>
   </div>
@@ -79,34 +88,40 @@
 
   let playerX = 0.5;
   let sliderPointerId = null;
+  let lastTouchX = 0;
+  const SLIDER_SENSITIVITY = 1.25;
 
+  // 슬라이더 밀기(드래그) 제어
   sliderTrack.addEventListener('pointerdown', (e) => {
-    sliderPointerId = e.pointerId;
-    sliderTrack.setPointerCapture(e.pointerId);
-    updateSlider(e.clientX);
+    if (sliderPointerId === null) {
+      sliderPointerId = e.pointerId;
+      lastTouchX = e.clientX;
+      sliderTrack.setPointerCapture(e.pointerId);
+    }
   });
 
   sliderTrack.addEventListener('pointermove', (e) => {
     if (e.pointerId === sliderPointerId) {
-      updateSlider(e.clientX);
+      const rect = sliderTrack.getBoundingClientRect();
+      const deltaX = e.clientX - lastTouchX;
+      lastTouchX = e.clientX;
+
+      const deltaRatio = (deltaX / rect.width) * SLIDER_SENSITIVITY;
+      playerX = Math.max(0.06, Math.min(0.94, playerX + deltaRatio));
+      sliderKnob.style.left = `${playerX * 100}%`;
     }
   });
 
-  sliderTrack.addEventListener('pointerup', (e) => {
+  const endSliderTouch = (e) => {
     if (e.pointerId === sliderPointerId) sliderPointerId = null;
-  });
-
-  function updateSlider(clientX) {
-    const rect = sliderTrack.getBoundingClientRect();
-    let ratio = (clientX - rect.left) / rect.width;
-    playerX = Math.max(0.05, Math.min(0.95, ratio));
-    sliderKnob.style.left = `${playerX * 100}%`;
-  }
+  };
+  sliderTrack.addEventListener('pointerup', endSliderTouch);
+  sliderTrack.addEventListener('pointercancel', endSliderTouch);
 
   buttons.forEach(btn => {
     btn.addEventListener('pointerdown', (e) => {
       btn.classList.add('active');
-      handleButtonHit(Number(btn.dataset.key));
+      console.log("Hit button:", btn.dataset.key);
     });
     const release = () => btn.classList.remove('active');
     btn.addEventListener('pointerup', release);
@@ -114,36 +129,103 @@
     btn.addEventListener('pointercancel', release);
   });
 
-  function handleButtonHit(keyIndex) {
-    console.log("Hit lane:", keyIndex);
-  }
+  // 테스트용 낙하 노트 데이터 (시작Y 비율, 판정선Y 비율, 레인(0~2))
+  let testNotes = [
+    { progress: 0.0, lane: 1 },
+    { progress: 0.4, lane: 0 },
+    { progress: 0.7, lane: 2 }
+  ];
 
   function loop() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    const laneWidth = canvas.width / 6;
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-    for (let i = 1; i < 6; i++) {
+    // 원근감 경사면(Perspective Slope) 좌표계 정의
+    const topY = canvas.height * 0.15;       // 트랙 시작 지점 (위쪽)
+    const judgeY = canvas.height * 0.85;     // 판정선 지점 (아래쪽)
+    const topWidth = canvas.width * 0.25;    // 위쪽 트랙 너비 (좁음)
+    const bottomWidth = canvas.width * 0.75; // 아래쪽 트랙 너비 (넓음)
+    const centerX = canvas.width / 2;
+
+    // 특정 Y 좌표에서의 트랙 너비와 좌우 X 경계 계산 함수
+    function getTrackMetrics(y) {
+      const p = Math.max(0, Math.min(1, (y - topY) / (judgeY - topY)));
+      const currentWidth = topWidth + (bottomWidth - topWidth) * p;
+      return {
+        left: centerX - currentWidth / 2,
+        right: centerX + currentWidth / 2,
+        width: currentWidth
+      };
+    }
+
+    // 1. 트랙 배경 (사다리꼴 경사면)
+    const topM = getTrackMetrics(topY);
+    const bottomM = getTrackMetrics(judgeY);
+
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    ctx.beginPath();
+    ctx.moveTo(topM.left, topY);
+    ctx.lineTo(topM.right, topY);
+    ctx.lineTo(bottomM.right, judgeY);
+    ctx.lineTo(bottomM.left, judgeY);
+    ctx.closePath();
+    ctx.fill();
+
+    // 2. 3개의 레인을 나누는 선 2개 (경사각에 맞춰 뻗어나감)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    ctx.lineWidth = 1.5;
+    for (let i = 1; i <= 2; i++) {
+      const ratio = i / 3;
       ctx.beginPath();
-      ctx.moveTo(i * laneWidth, 0);
-      ctx.lineTo(i * laneWidth, canvas.height);
+      ctx.moveTo(topM.left + topM.width * ratio, topY);
+      ctx.lineTo(bottomM.left + bottomM.width * ratio, judgeY);
       ctx.stroke();
     }
 
-    const judgeY = canvas.height * 0.85;
+    // 트랙 외곽선
+    ctx.strokeStyle = '#b53471';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(topM.left, topY);
+    ctx.lineTo(bottomM.left, judgeY);
+    ctx.moveTo(topM.right, topY);
+    ctx.lineTo(bottomM.right, judgeY);
+    ctx.stroke();
+
+    // 3. 테스트용 노트 낙하 및 렌더링 (경사면 타고 내려오기)
+    ctx.fillStyle = '#ff4757';
+    testNotes.forEach(note => {
+      note.progress += 0.007; // 낙하 속도
+      if (note.progress > 1.0) note.progress = 0.0; // 반복 루프
+
+      // progress에 따른 현재 Y 좌표
+      const currentY = topY + (judgeY - topY) * note.progress;
+      const m = getTrackMetrics(currentY);
+      const laneW = m.width / 3;
+      // 해당 레인의 중앙 X 좌표 계산 (원근감에 따라 노트 크기와 위치도 조절됨)
+      const noteX = m.left + laneW * note.lane + laneW / 2;
+      const noteRadius = 10 + 8 * note.progress; // 아래로 올수록 커지는 원근감 효과
+
+      ctx.beginPath();
+      ctx.arc(noteX, currentY, noteRadius, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // 4. 판정선 그리기
     ctx.strokeStyle = '#e94560';
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(0, judgeY);
-    ctx.lineTo(canvas.width, judgeY);
+    ctx.moveTo(bottomM.left, judgeY);
+    ctx.lineTo(bottomM.right, judgeY);
     ctx.stroke();
 
+    // 5. 캐릭터 그리기 (경사면 트랙 안팎으로 자유롭게 이동)
     const charX = playerX * canvas.width;
     ctx.fillStyle = '#00ffcc';
     ctx.beginPath();
     ctx.arc(charX, judgeY, 16, 0, Math.PI * 2);
     ctx.fill();
 
+    // 피격 히트박스
     ctx.fillStyle = '#ff0000';
     ctx.beginPath();
     ctx.arc(charX, judgeY, 5, 0, Math.PI * 2);
