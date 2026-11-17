@@ -91,11 +91,9 @@
   let lastTouchX = 0;
   const SLIDER_SENSITIVITY = 1.25;
 
-  // 시간 기반 독립 노트 속도 (초당 진행률)
-  const NOTE_SPEED = 0.45; 
+  const NOTE_SPEED = 0.40; 
   let lastTime = performance.now();
 
-  // 슬라이더 조작
   sliderTrack.addEventListener('pointerdown', (e) => {
     if (sliderPointerId === null) {
       sliderPointerId = e.pointerId;
@@ -130,18 +128,14 @@
     btn.addEventListener('pointercancel', release);
   });
 
-  // 6개 레인 컬러 정의 (R, G, B, R, G, B)
   const LANE_COLORS = ['#ff4757', '#2ed573', '#1e90ff', '#ff4757', '#2ed573', '#1e90ff'];
-  // 각 레인 선의 X 위치 비율 (트랙 좌측 끝=0.0 ~ 우측 끝=1.0 기준 균등 배치)
   const LANE_RATIOS = [1/7, 2/7, 3/7, 4/7, 5/7, 6/7];
 
-  // 테스트용 벽돌 노트 데이터 (lane: 0~5번 컬러 선을 타고 내려옴)
   let testBricks = [
-    { progress: 0.0, lane: 0 }, // R (1번 선)
-    { progress: 0.2, lane: 1 }, // G (2번 선)
-    { progress: 0.4, lane: 2 }, // B (3번 선)
-    { progress: 0.6, lane: 3 }, // R (4번 선)
-    { progress: 0.8, lane: 4 }  // G (5번 선)
+    { progress: 0.0, lane: 0 }, 
+    { progress: 0.25, lane: 1 }, 
+    { progress: 0.5, lane: 2 }, 
+    { progress: 0.75, lane: 4 }  
   ];
 
   function loop() {
@@ -170,7 +164,7 @@
     const topM = getTrackMetrics(topY);
     const bottomM = getTrackMetrics(judgeY);
 
-    // 1. 트랙 배경 (어두운 사다리꼴)
+    // 1. 트랙 배경
     ctx.fillStyle = 'rgba(10, 10, 22, 0.92)';
     ctx.beginPath();
     ctx.moveTo(topM.left, topY);
@@ -180,12 +174,12 @@
     ctx.closePath();
     ctx.fill();
 
-    // 2. ★ 온게키 스타일 6개 컬러 가이드 선 (R-G-B-R-G-B 선)
+    // 2. 6개 레인 컬러 가이드 선
     for (let i = 0; i < 6; i++) {
       const ratio = LANE_RATIOS[i];
       ctx.strokeStyle = LANE_COLORS[i];
       ctx.lineWidth = 2;
-      ctx.globalAlpha = 0.65; // 선이 너무 눈부시지 않게 은은한 네온 느낌 부여
+      ctx.globalAlpha = 0.65;
       ctx.beginPath();
       ctx.moveTo(topM.left + topM.width * ratio, topY);
       ctx.lineTo(bottomM.left + bottomM.width * ratio, judgeY);
@@ -193,7 +187,7 @@
     }
     ctx.globalAlpha = 1.0;
 
-    // 트랙 양쪽 외곽 사이드 벽 선 (보라/핑크)
+    // 사이드 벽 선
     ctx.strokeStyle = '#b53471';
     ctx.lineWidth = 3;
     ctx.beginPath();
@@ -203,25 +197,24 @@
     ctx.lineTo(bottomM.right, judgeY);
     ctx.stroke();
 
-    // 3. ★ 원근감 보정(내려올수록 빨라지는 투시 거리) 적용 벽돌 노트 렌더링
+    // 3. 벽돌 노트 렌더링 (내려올수록 가속되는 연출 + 1/8 가로 비율 고정)
     testBricks.forEach(brick => {
       brick.progress += NOTE_SPEED * deltaTime; 
       if (brick.progress > 1.0) brick.progress = 0.0;
 
-      // 원근 투시 곡선 적용: 위에서는 촘촘하게, 판정선으로 올수록 일정한 체감 속도로 가속
-      const visualProgress = Math.pow(brick.progress, 2.0);
+      // ★ 아래로 올수록 가속감이 붙는 지수 함수 곡선 적용 (값이 낮을수록 판정선 근처에서 확 빨라짐)
+      const visualProgress = Math.pow(brick.progress, 0.45);
       const currentY = topY + (judgeY - topY) * visualProgress;
       
       const m = getTrackMetrics(currentY);
       const ratio = LANE_RATIOS[brick.lane];
       
-      // 노트가 해당 색깔의 가이드 선 정중앙을 타고 내려오도록 X좌표 계산
       const noteCenterX = m.left + m.width * ratio;
       
-      // 가로 크기: 전체 트랙 너비의 1/8
+      // 노트 가로 크기: 전체 트랙 너비의 1/8
       const brickWidth = m.width / 8; 
-      // 세로 두께 고정 (원근감에 따라 살짝만 커지거나 일정하게 유지)
-      const brickHeight = 16; 
+      // 노트 세로 두께 (비율 유지)
+      const brickHeight = 18; 
 
       const x1 = noteCenterX - brickWidth / 2;
       const x2 = noteCenterX + brickWidth / 2;
