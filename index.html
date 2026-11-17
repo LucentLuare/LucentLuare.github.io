@@ -91,9 +91,11 @@
   let lastTouchX = 0;
   const SLIDER_SENSITIVITY = 1.25;
 
-  // ★ 터치 및 프레임에 영향받지 않는 독립적인 노트 속도 (초당 진행 비율, 예: 0.35이면 위에서 아래까지 약 2.8초 소요)
-  const NOTE_SPEED_PER_SEC = 0.38; 
+  // ★ 시간 기반 독립 노트 속도 (값이 클수록 빠르게 떨어짐, 예: 0.35 = 최상단에서 판정선까지 약 2.8초)
+  const NOTE_SPEED = 0.35; 
+  let lastTime = performance.now();
 
+  // 슬라이더 조작
   sliderTrack.addEventListener('pointerdown', (e) => {
     if (sliderPointerId === null) {
       sliderPointerId = e.pointerId;
@@ -134,10 +136,10 @@
     { progress: 0.7, lane: 2, color: '#1e90ff' }  
   ];
 
-  let lastTime = performance.now();
-
-  function loop(currentTime) {
-    const deltaTime = (currentTime - lastTime) / 1000; // 초 단위 시간 간격
+  function loop() {
+    // 델타 타임(Delta Time) 계산으로 터치나 프레임에 영향받지 않는 독립 속도 구현
+    const currentTime = performance.now();
+    const deltaTime = (currentTime - lastTime) / 1000;
     lastTime = currentTime;
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -171,16 +173,14 @@
     ctx.closePath();
     ctx.fill();
 
-    // 2. 노트가 타고 내려오는 3레인 가이드 세로선 (노트 뒤쪽에 배치)
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+    // 2. 3레인을 나누는 내부 가이드 선 2개 (세로선)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
     ctx.lineWidth = 1.5;
     for (let i = 1; i <= 2; i++) {
       const ratio = i / 3;
-      const tX = topM.left + topM.width * ratio;
-      const bX = bottomM.left + bottomM.width * ratio;
       ctx.beginPath();
-      ctx.moveTo(tX, topY);
-      ctx.lineTo(bX, judgeY);
+      ctx.moveTo(topM.left + topM.width * ratio, topY);
+      ctx.lineTo(bottomM.left + bottomM.width * ratio, judgeY);
       ctx.stroke();
     }
 
@@ -194,12 +194,12 @@
     ctx.lineTo(bottomM.right, judgeY);
     ctx.stroke();
 
-    // 3. 벽돌 노트 렌더링 (독립된 Delta Time 속도 적용 + 가로 크기 전체 트랙의 1/8)
+    // 3. 벽돌 노트 렌더링 (가로 크기 = 전체 트랙 너비의 1/8)
     testBricks.forEach(brick => {
-      brick.progress += NOTE_SPEED_PER_SEC * deltaTime; 
+      brick.progress += NOTE_SPEED * deltaTime; 
       if (brick.progress > 1.0) brick.progress = 0.0;
 
-      const brickHeight = 20; // 세로 두께 유지
+      const brickHeight = 20; 
       const currentY = topY + (judgeY - topY) * brick.progress;
       
       const m = getTrackMetrics(currentY);
@@ -208,7 +208,7 @@
       // 해당 레인의 중앙 X 좌표
       const laneCenterX = m.left + laneWidth * brick.lane + laneWidth / 2;
       
-      // ★ 가로 크기를 전체 트랙 너비의 1/8로 고정
+      // 노트 가로 크기: 전체 트랙 너비(m.width)의 1/8
       const brickWidth = m.width / 8; 
 
       const x1 = laneCenterX - brickWidth / 2;
@@ -257,7 +257,10 @@
 
     requestAnimationFrame(loop);
   }
-  requestAnimationFrame(loop);
+  requestAnimationFrame(() => {
+    lastTime = performance.now();
+    loop();
+  });
 </script>
 </body>
 </html>
