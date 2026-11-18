@@ -22,32 +22,85 @@
       width: 100vw; max-width: 56.25vh;
       height: 100vh; max-height: 177.78vw;
       background: #0b0b16; display: flex; flex-direction: column; border: 2px solid #333;
-      position: relative;
+      position: relative; overflow: hidden;
     }
+
+    /* 게임 시작 화면 오버레이 */
+    #start-screen {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(11, 11, 22, 0.96); z-index: 100;
+      display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 20px;
+      color: white; padding: 20px; text-align: center;
+    }
+    #start-screen h1 { font-size: 26px; color: #00ffcc; margin: 0; text-shadow: 0 0 10px rgba(0,255,204,0.5); }
+    .config-group {
+      background: rgba(22, 33, 62, 0.9); border: 1px solid #e94560;
+      padding: 14px 20px; border-radius: 12px; width: 100%; max-width: 280px;
+    }
+    .config-group label { font-size: 14px; font-weight: bold; display: block; margin-bottom: 8px; color: #ff6b81; }
+    .speed-select-box { display: flex; justify-content: center; align-items: center; gap: 12px; }
+    .speed-sel-btn {
+      background: #e94560; border: none; color: white; width: 36px; height: 36px;
+      border-radius: 8px; font-weight: bold; font-size: 18px; cursor: pointer;
+    }
+    .speed-sel-btn:active { background: #ff6b81; }
+    #start-speed-val { font-size: 18px; font-weight: bold; width: 60px; }
+
+    #start-btn {
+      background: linear-gradient(135deg, #00ffcc, #00b894); border: none; color: #111;
+      font-size: 20px; font-weight: bold; padding: 14px 40px; border-radius: 12px;
+      cursor: pointer; box-shadow: 0 0 20px rgba(0,255,204,0.4); margin-top: 10px;
+      transition: transform 0.1s;
+    }
+    #start-btn:active { transform: scale(0.95); }
+
     #play-area { flex: 68; position: relative; width: 100%; overflow: hidden; }
     canvas { width: 100%; height: 100%; display: block; }
     
+    /* 상단 HUD 및 패널 구조 */
     #hud-top {
       position: absolute; top: 8px; left: 8px; right: 8px;
-      display: flex; justify-content: space-between; align-items: center;
+      display: flex; justify-content: space-between; align-items: flex-start;
       pointer-events: none; z-index: 10;
+    }
+
+    #left-panel {
+      display: flex; flex-direction: column; gap: 4px; pointer-events: auto;
     }
     #speed-control {
       display: flex; align-items: center; gap: 6px;
       background: rgba(22, 33, 62, 0.85); border: 1px solid #e94560;
-      padding: 4px 8px; border-radius: 8px; color: white; font-size: 12px; font-weight: bold;
-      pointer-events: auto;
+      padding: 3px 6px; border-radius: 6px; color: white; font-size: 11px; font-weight: bold;
     }
     .speed-btn {
-      background: #e94560; border: none; color: white; width: 22px; height: 22px;
-      border-radius: 4px; font-weight: bold; font-size: 14px; cursor: pointer;
+      background: #e94560; border: none; color: white; width: 20px; height: 20px;
+      border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer;
       display: flex; justify-content: center; align-items: center;
     }
-    .speed-btn:active { background: #ff6b81; }
-    #score-board {
-      background: rgba(22, 33, 62, 0.85); border: 1px solid #00ffcc;
-      padding: 4px 10px; border-radius: 8px; color: #00ffcc; font-size: 12px; font-weight: bold;
+
+    /* 판정 개수 표시 박스 (왼쪽) */
+    #judge-counter {
+      background: rgba(15, 23, 42, 0.9); border: 1px solid #4a5568;
+      padding: 6px 8px; border-radius: 8px; color: white; font-size: 11px;
+      display: flex; flex-direction: column; gap: 2px; min-width: 110px;
     }
+    .jc-row { display: flex; justify-content: space-between; }
+    .c-cbreak { color: #00ffcc; }
+    .c-break { color: #ff4757; }
+    .c-hit { color: #2ed573; }
+    .c-miss { color: #a4b0be; }
+    .c-bell { color: #f1c40f; }
+
+    /* 우측 점수 보드 (상단 일반 점수, 아래 테크니컬 스코어) */
+    #score-boards {
+      display: flex; flex-direction: column; gap: 4px; align-items: flex-end;
+    }
+    .score-box {
+      background: rgba(22, 33, 62, 0.85); border-radius: 8px; padding: 4px 10px; text-align: right;
+    }
+    #score-box-main { border: 1px solid #ffffff; color: #ffffff; font-size: 12px; font-weight: bold; }
+    #score-box-tech { border: 1px solid #00ffcc; color: #00ffcc; font-size: 13px; font-weight: bold; }
+    .score-val { font-size: 15px; display: block; }
 
     #controller-area {
       flex: 32; background: #16213e; display: flex; flex-direction: column; padding: 6px; gap: 6px;
@@ -84,14 +137,46 @@
 <body oncontextmenu="return false;">
 
 <div id="game-container">
+  <!-- 게임 시작 설정 화면 오버레이 -->
+  <div id="start-screen">
+    <h1>ONGEKI MOBILE</h1>
+    <div class="config-group">
+      <label>노트 배속 (변속) 설정</label>
+      <div class="speed-select-box">
+        <button class="speed-sel-btn" id="modal-speed-down">-</button>
+        <span id="start-speed-val">1.0x</span>
+        <button class="speed-sel-btn" id="modal-speed-up">+</button>
+      </div>
+    </div>
+    <button id="start-btn">GAME START</button>
+  </div>
+
   <div id="play-area">
     <div id="hud-top">
-      <div id="speed-control">
-        <button class="speed-btn" id="speed-down">-</button>
-        <span id="speed-display">1.0x</span>
-        <button class="speed-btn" id="speed-up">+</button>
+      <div id="left-panel">
+        <div id="speed-control">
+          <button class="speed-btn" id="speed-down">-</button>
+          <span id="speed-display">1.0x</span>
+          <button class="speed-btn" id="speed-up">+</button>
+        </div>
+        <!-- 판정 개수 카운터 -->
+        <div id="judge-counter">
+          <div class="jc-row c-cbreak"><span>CRITICAL</span><span id="cnt-cbreak">0</span></div>
+          <div class="jc-row c-break"><span>BREAK</span><span id="cnt-break">0</span></div>
+          <div class="jc-row c-hit"><span>HIT</span><span id="cnt-hit">0</span></div>
+          <div class="jc-row c-miss"><span>MISS</span><span id="cnt-miss">0</span></div>
+          <div class="jc-row c-bell"><span>BELL</span><span id="cnt-bell">0</span></div>
+        </div>
       </div>
-      <div id="score-board">SCORE: <span id="score-val">0</span></div>
+
+      <div id="score-boards">
+        <div class="score-box" id="score-box-main">
+          SCORE <span class="score-val" id="score-main-val">0</span>
+        </div>
+        <div class="score-box" id="score-box-tech">
+          TECHNICAL SCORE <span class="score-val" id="score-tech-val">0000000</span>
+        </div>
+      </div>
     </div>
     <canvas id="gameCanvas"></canvas>
   </div>
@@ -122,7 +207,22 @@
   const sliderKnob = document.getElementById('slider-knob');
   const buttons = document.querySelectorAll('.btn');
   const speedDisplay = document.getElementById('speed-display');
-  const scoreVal = document.getElementById('score-val');
+  
+  // HUD UI 요소
+  const scoreMainVal = document.getElementById('score-main-val');
+  const scoreTechVal = document.getElementById('score-tech-val');
+  const cntCBreak = document.getElementById('cnt-cbreak');
+  const cntBreak = document.getElementById('cnt-break');
+  const cntHit = document.getElementById('cnt-hit');
+  const cntMiss = document.getElementById('cnt-miss');
+  const cntBell = document.getElementById('cnt-bell');
+
+  // 시작 화면 컨트롤
+  const startScreen = document.getElementById('start-screen');
+  const startSpeedVal = document.getElementById('start-speed-val');
+  const startBtn = document.getElementById('start-btn');
+
+  let gameStarted = false;
 
   function resize() {
     canvas.width = canvas.clientWidth;
@@ -145,8 +245,19 @@
   const SIDE_HIT_WINDOW_MS = 9 * FRAME_MS;
   const SIDE_EARLY_MISS_MS = 18 * FRAME_MS;
 
-  let score = 0;
+  // 점수 및 판정 카운터 상태
+  let generalScore = 0; // 일반 점수 (캐릭터 성능 등 별도 변수 연동 가능)
+  let technicalScore = 0; // 101만 만점제 테크니컬 스코어
   let combo = 0;
+
+  let counts = {
+    cbreak: 0,
+    break: 0,
+    hit: 0,
+    miss: 0,
+    bell: 0
+  };
+
   let judgePopups = [];
   let hitEffects = [];
   let laneFlash = [0, 0, 0, 0, 0, 0];
@@ -169,58 +280,92 @@
     return null;
   }
 
-  // ================= JSON 형식의 채보 데이터 (Chart Data 파일 구조) =================
-  const chartData = {
-    bpm: 140,
-    loopTime: 12000,
-    // 레인 곡선 및 축소 이벤트 (시간에 따른 좌우 클립 영역)
-    fieldEvents: [
-      { t: 0,     clipL: 0.0,   clipR: 1.0 },
-      { t: 3800,  clipL: 0.0,   clipR: 1.0 },
-      { t: 4200,  clipL: 0.07,  clipR: 0.50 }, // 3레인 축소 구간
-      { t: 7800,  clipL: 0.07,  clipR: 0.50 },
-      { t: 8200,  clipL: 0.07,  clipR: 0.79 }, // 5레인 구간
-      { t: 11500, clipL: 0.07,  clipR: 0.79 },
-      { t: 12000, clipL: 0.0,   clipR: 1.0 }
-    ],
-    notes: [
-      { time: 800,  lane: 0, type: 'tap' },
-      { time: 1150, side: 'left', type: 'side' },
-      { time: 1500, lane: 2, type: 'flick', dir: 1 },
-      { time: 1900, side: 'right', type: 'sideHold', holdDuration: 900 },
-      { time: 2400, lane: 0, type: 'hold', holdDuration: 1200, waypoints: [
-        { offset: 0, lane: 0 },
-        { offset: 600, lane: 3 },
-        { offset: 1200, lane: 0 }
-      ]},
-      { time: 3000, lane: 5, type: 'tap' },
-      { time: 4500, lane: 0, type: 'tap' },
-      { time: 4800, lane: 1, type: 'tap' },
-      { time: 5100, lane: 2, type: 'tap' },
-      { time: 5400, side: 'right', type: 'sideHold', holdDuration: 1000 },
-      { time: 6000, lane: 1, type: 'hold', holdDuration: 1200, waypoints: [
-        { offset: 0, lane: 1 },
-        { offset: 400, lane: 2 },
-        { offset: 800, lane: 0 },
-        { offset: 1200, lane: 1 }
-      ]},
-      { time: 8500, lane: 0, type: 'tap' },
-      { time: 8500, lane: 3, type: 'tap' },
-      { time: 9100, lane: 2, type: 'flick', dir: -1 },
-      { time: 9600, side: 'left', type: 'side' },
-      { time: 10000, lane: 4, type: 'hold', holdDuration: 1100, waypoints: [
-        { offset: 0, lane: 4 },
-        { offset: 550, lane: 1 },
-        { offset: 1100, lane: 4 }
-      ]},
-      { time: 10500, lane: 0, type: 'tap' }
-    ]
-  };
+  let chartData = { bpm: 140, loopTime: 12000, fieldEvents: [], notes: [] };
+  let notes = [];
+  let totalNoteCount = 0;
+  let maxTechPoints = 0; // 101만 만점 스케일 계산용
+  let songStartTime = 0;
+  let lastPatternCycle = -1;
+  let chartLoaded = false;
+
+  async function loadChart() {
+    try {
+      const res = await fetch('chart.json');
+      chartData = await res.json();
+      chartLoaded = true;
+      prepareChart();
+    } catch (e) {
+      console.error('채보 로드 실패:', e);
+      chartLoaded = true;
+    }
+  }
+  loadChart();
+
+  // 채보 로드 시 전체 노트 가중치 총합 계산 (101만 만점 비중 계산용)
+  function prepareChart() {
+    if (!chartData.notes) return;
+    totalNoteCount = chartData.notes.length;
+    // 단노트 비중 95만, 탄막(벨/빨간링) 비중 6만 -> 총 101만 척도
+    // 각 노트당 가중치 부여 (탭/홀드/사이드/플릭: 단노트 영역, 벨/빨간링: 탄막 영역)
+    let tapCount = 0;
+    let barrierCount = 0;
+    chartData.notes.forEach(n => {
+      if (n.type === 'bell' || n.type === 'redRing') barrierCount++;
+      else tapCount++;
+    });
+    // 보정치 설정 (방어적으로 분배)
+  }
+
+  // 101만 만점제 테크니컬 스코어 갱신 함수
+  // 단노트 영역 95만, 탄막(벨/빨간링) 영역 6만 비중 반영
+  function updateTechnicalScore(addedTech) {
+    technicalScore = Math.min(1010000, technicalScore + addedTech);
+    scoreTechVal.textContent = Math.round(technicalScore).toString().padStart(7, '0');
+  }
+
+  function addGeneralScore(amt) {
+    generalScore += amt;
+    scoreMainVal.textContent = generalScore.toLocaleString();
+  }
+
+  // 시작 화면 배속 설정 이벤트
+  document.getElementById('modal-speed-down').addEventListener('click', () => {
+    noteSpeedMultiplier = Math.max(0.5, Math.round((noteSpeedMultiplier - 0.1) * 10) / 10);
+    startSpeedVal.textContent = `${noteSpeedMultiplier.toFixed(1)}x`;
+    speedDisplay.textContent = `${noteSpeedMultiplier.toFixed(1)}x`;
+  });
+  document.getElementById('modal-speed-up').addEventListener('click', () => {
+    noteSpeedMultiplier = Math.min(3.0, Math.round((noteSpeedMultiplier + 0.1) * 10) / 10);
+    startSpeedVal.textContent = `${noteSpeedMultiplier.toFixed(1)}x`;
+    speedDisplay.textContent = `${noteSpeedMultiplier.toFixed(1)}x`;
+  });
+
+  // 인게임 배속 버튼 이벤트
+  document.getElementById('speed-down').addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    noteSpeedMultiplier = Math.max(0.5, Math.round((noteSpeedMultiplier - 0.1) * 10) / 10);
+    speedDisplay.textContent = `${noteSpeedMultiplier.toFixed(1)}x`;
+    startSpeedVal.textContent = `${noteSpeedMultiplier.toFixed(1)}x`;
+  });
+  document.getElementById('speed-up').addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    noteSpeedMultiplier = Math.min(3.0, Math.round((noteSpeedMultiplier + 0.1) * 10) / 10);
+    speedDisplay.textContent = `${noteSpeedMultiplier.toFixed(1)}x`;
+    startSpeedVal.textContent = `${noteSpeedMultiplier.toFixed(1)}x`;
+  });
+
+  // GAME START 버튼 클릭 시 게임 시작
+  startBtn.addEventListener('click', () => {
+    startScreen.style.display = 'none';
+    gameStarted = true;
+    songStartTime = performance.now();
+  });
 
   function getClipAtTime(targetTime) {
     let cycleT = (targetTime - songStartTime) % chartData.loopTime;
     if (cycleT < 0) cycleT += chartData.loopTime;
     const events = chartData.fieldEvents;
+    if (!events || events.length === 0) return { clipL: 0.0, clipR: 1.0 };
 
     for (let i = 0; i < events.length - 1; i++) {
       const k1 = events[i];
@@ -255,22 +400,14 @@
     const wallRight = fullLeft + fullWidth * clip.clipR;
 
     return {
-      fullLeft,
-      fullRight,
-      fullWidth,
-      wallLeft,
-      wallRight,
+      fullLeft, fullRight, fullWidth, wallLeft, wallRight,
       activeWidth: wallRight - wallLeft,
-      clipL: clip.clipL,
-      clipR: clip.clipR
+      clipL: clip.clipL, clipR: clip.clipR
     };
   }
 
-  let notes = [];
-  let songStartTime = performance.now();
-  let lastPatternCycle = -1;
-
   function spawnChartNotes(now) {
+    if (!chartLoaded || !gameStarted) return;
     const elapsed = now - songStartTime;
     const currentCycle = Math.floor(elapsed / chartData.loopTime);
     if (currentCycle > lastPatternCycle) {
@@ -285,27 +422,12 @@
           type: p.type,
           holdDuration: p.holdDuration || 0,
           waypoints: p.waypoints || null,
-          hit: false,
-          holding: false,
-          heldByKey: null,
-          completed: false,
-          missed: false
+          hit: false, holding: false, heldByKey: null,
+          completed: false, missed: false
         });
       });
     }
   }
-
-  document.getElementById('speed-down').addEventListener('pointerdown', (e) => {
-    e.stopPropagation();
-    noteSpeedMultiplier = Math.max(0.5, Math.round((noteSpeedMultiplier - 0.1) * 10) / 10);
-    speedDisplay.textContent = `${noteSpeedMultiplier.toFixed(1)}x`;
-  });
-
-  document.getElementById('speed-up').addEventListener('pointerdown', (e) => {
-    e.stopPropagation();
-    noteSpeedMultiplier = Math.min(3.0, Math.round((noteSpeedMultiplier + 0.1) * 10) / 10);
-    speedDisplay.textContent = `${noteSpeedMultiplier.toFixed(1)}x`;
-  });
 
   sliderTrack.addEventListener('pointerdown', (e) => {
     e.preventDefault();
@@ -317,7 +439,7 @@
   });
 
   sliderTrack.addEventListener('pointermove', (e) => {
-    if (e.pointerId === sliderPointerId) {
+    if (e.pointerId === sliderPointerId && gameStarted) {
       const rect = sliderTrack.getBoundingClientRect();
       const deltaX = e.clientX - lastTouchX;
       lastTouchX = e.clientX;
@@ -338,17 +460,17 @@
   sliderTrack.addEventListener('pointerup', endSliderTouch);
   sliderTrack.addEventListener('pointercancel', endSliderTouch);
 
-  // ★ 캐릭터 탈선(Lane Out) 확인 함수: 현재 캐릭터 위치가 활성화된 레인/벽 안쪽에 있는지 검사
   function isCharacterDerailed(now) {
     const judgeY = canvas.height * 0.90;
     const bottomM = getTrackMetricsAt(judgeY, now);
     const charX = bottomM.fullLeft + bottomM.fullWidth * playerX;
-    // 활성화된 벽(wallLeft ~ wallRight) 범위를 벗어나면 탈선
     return charX < bottomM.wallLeft || charX > bottomM.wallRight;
   }
 
-  function triggerMissAt(x, y) {
+  function triggerMissAt(x, y, isBarrier = false) {
     combo = 0;
+    counts.miss++;
+    cntMiss.textContent = counts.miss;
     judgePopups.push({
       x: x, y: y - 52,
       lines: ['MISS'], color: '#888888',
@@ -358,7 +480,7 @@
 
   function checkFlickJudge(moveDir) {
     const now = performance.now();
-    if (isCharacterDerailed(now)) return; // 탈선 시 입력 차단
+    if (isCharacterDerailed(now)) return;
 
     const judgeY = canvas.height * 0.90;
     const bottomM = getTrackMetricsAt(judgeY, now);
@@ -371,7 +493,7 @@
           laneFlash[note.lane] = 1.0;
           const laneX = bottomM.fullLeft + bottomM.fullWidth * FIXED_LANE_RATIOS[note.lane];
           spawnHitEffectAt(laneX, judgeY - 12, '#ffd700');
-          processJudgeAt(laneX, judgeY - 12, 0);
+          processJudgeAt(laneX, judgeY - 12, 0, 'flick');
           break;
         }
       }
@@ -385,35 +507,53 @@
     });
   }
 
-  function processJudgeAt(x, y, minDiff) {
+  // 판정 처리 및 101만 만점제 점수 배분 (단노트 95만 / 탄막 6만)
+  function processJudgeAt(x, y, minDiff, noteType = 'tap') {
     let textLines = [];
     let color = '#fff';
-    let addScore = 0;
+    let techAdd = 0;
+    let generalAdd = 1000;
+
+    // 탄막 계열 (벨, 빨간링)인지 확인 (총 6만 비중 배분)
+    const isBarrier = (noteType === 'bell' || noteType === 'redRing');
+    const maxNotePoints = isBarrier ? (60000 / (totalNoteCount || 1)) : (950000 / (totalNoteCount || 1));
 
     if (minDiff <= 1 * FRAME_MS) {
       textLines = ['PLATINUM', 'BREAK'];
       color = '#00ffcc';
-      addScore = 1200;
+      techAdd = maxNotePoints * 1.0; // 100% 점수
+      counts.cbreak++;
       combo++;
     } else if (minDiff <= 2 * FRAME_MS) {
       textLines = ['CRITICAL', 'BREAK'];
       color = '#ffd700';
-      addScore = 1000;
+      techAdd = maxNotePoints * 1.0;
+      counts.cbreak++;
       combo++;
     } else if (minDiff <= 4 * FRAME_MS) {
       textLines = ['BREAK'];
       color = '#ff4757';
-      addScore = 700;
+      techAdd = maxNotePoints * 0.8; // 80%
+      counts.break++;
       combo++;
     } else {
       textLines = ['HIT'];
       color = '#2ed573';
-      addScore = 400;
+      techAdd = maxNotePoints * 0.5; // 50%
+      counts.hit++;
       combo++;
     }
 
-    score += addScore + (combo * 10);
-    scoreVal.textContent = score.toLocaleString();
+    if (isBarrier) counts.bell++;
+
+    // 카운터 DOM 업데이트
+    cntCBreak.textContent = counts.cbreak;
+    cntBreak.textContent = counts.break;
+    cntHit.textContent = counts.hit;
+    cntBell.textContent = counts.bell;
+
+    updateTechnicalScore(techAdd);
+    addGeneralScore(generalAdd + (combo * 10));
 
     judgePopups.push({
       x: x, y: y - 52,
@@ -424,17 +564,16 @@
   }
 
   function handleButtonDown(keyIndex) {
-    if (pressedKeys[keyIndex]) return;
+    if (!gameStarted || pressedKeys[keyIndex]) return;
     pressedKeys[keyIndex] = true;
 
     const now = performance.now();
-    // ★ 캐릭터가 탈선한 경우 노트 입력 완전 차단
     if (isCharacterDerailed(now)) return;
 
     const judgeY = canvas.height * 0.90;
     const bottomM = getTrackMetricsAt(judgeY, now);
 
-    // 1. 벽치기 버튼 처리 (0: L-S, 7: R-S)
+    // 사이드 버튼 (벽치기)
     if (keyIndex === 0 || keyIndex === 7) {
       const targetSide = keyIndex === 0 ? 'left' : 'right';
       wallFlash[targetSide] = 1.0;
@@ -475,7 +614,7 @@
         }
         const wallX = targetSide === 'left' ? bottomM.wallLeft - 14 : bottomM.wallRight + 14;
         spawnHitEffectAt(wallX, judgeY - 12, '#9b59b6');
-        processJudgeAt(wallX, judgeY - 12, validCandidates[0].diff);
+        processJudgeAt(wallX, judgeY - 12, validCandidates[0].diff, 'side');
       } else if (earlyMissCandidates.length > 0) {
         earlyMissCandidates.sort((a, b) => a.diff - b.diff);
         const missedNote = earlyMissCandidates[0].note;
@@ -486,11 +625,12 @@
       return;
     }
 
-    // 2. 메인 버튼 처리 (1~6)
+    // 메인 버튼 (1~6)
     const colorType = getButtonColorType(keyIndex);
     if (!colorType) return;
     const targetLanes = COLOR_BUTTON_LANES[colorType];
 
+    // 홀드 노트 이어잡기
     for (let note of notes) {
       if (note.type === 'hold' && !note.completed && !note.missed && targetLanes.includes(note.lane)) {
         if (now >= note.targetTime - HIT_WINDOW_MS && now <= note.targetTime + note.holdDuration && !note.holding && note.hit) {
@@ -508,7 +648,7 @@
     let earlyMissCandidates = [];
 
     for (let note of notes) {
-      if ((note.type === 'tap' || note.type === 'hold') && !note.hit && !note.missed && targetLanes.includes(note.lane)) {
+      if ((note.type === 'tap' || note.type === 'hold' || note.type === 'bell' || note.type === 'redRing') && !note.hit && !note.missed && targetLanes.includes(note.lane)) {
         const diff = Math.abs(now - note.targetTime);
         if (diff <= HIT_WINDOW_MS) {
           validCandidates.push({ note, diff });
@@ -519,15 +659,7 @@
     }
 
     if (validCandidates.length > 0) {
-      validCandidates.sort((a, b) => {
-        if (Math.abs(a.diff - b.diff) < 5) {
-          const isLeftBtn = keyIndex <= 3;
-          const aIsLeft = a.note.lane <= 2;
-          return (isLeftBtn === aIsLeft) ? -1 : 1;
-        }
-        return a.diff - b.diff;
-      });
-
+      validCandidates.sort((a, b) => a.diff - b.diff);
       let bestMatch = validCandidates[0].note;
       bestMatch.hit = true;
       laneFlash[bestMatch.lane] = 1.0;
@@ -538,17 +670,9 @@
       }
       const laneX = bottomM.fullLeft + bottomM.fullWidth * FIXED_LANE_RATIOS[bestMatch.lane];
       spawnHitEffectAt(laneX, judgeY, ALL_LANE_COLORS[bestMatch.lane]);
-      processJudgeAt(laneX, judgeY, validCandidates[0].diff);
+      processJudgeAt(laneX, judgeY, validCandidates[0].diff, bestMatch.type);
     } else if (earlyMissCandidates.length > 0) {
-      earlyMissCandidates.sort((a, b) => {
-        if (Math.abs(a.diff - b.diff) < 5) {
-          const isLeftBtn = keyIndex <= 3;
-          const aIsLeft = a.note.lane <= 2;
-          return (isLeftBtn === aIsLeft) ? -1 : 1;
-        }
-        return a.diff - b.diff;
-      });
-
+      earlyMissCandidates.sort((a, b) => a.diff - b.diff);
       const missedNote = earlyMissCandidates[0].note;
       missedNote.missed = true;
       const laneX = bottomM.fullLeft + bottomM.fullWidth * FIXED_LANE_RATIOS[missedNote.lane];
@@ -559,6 +683,7 @@
   }
 
   function handleButtonUp(keyIndex) {
+    if (!gameStarted) return;
     pressedKeys[keyIndex] = false;
     const now = performance.now();
     const judgeY = canvas.height * 0.90;
@@ -570,20 +695,15 @@
         if (now >= holdEndTime - 140) {
           note.holding = false;
           note.completed = true;
-          score += 800;
+          updateTechnicalScore(10000 / (totalNoteCount || 1));
+          addGeneralScore(800);
           combo++;
-          scoreVal.textContent = score.toLocaleString();
 
           const endX = note.type === 'sideHold'
             ? (note.side === 'left' ? bottomM.wallLeft - 14 : bottomM.wallRight + 14)
             : bottomM.fullLeft + bottomM.fullWidth * getHoldRatioAtTime(note, holdEndTime);
 
           spawnHitEffectAt(endX, judgeY, note.type === 'sideHold' ? '#9b59b6' : ALL_LANE_COLORS[note.lane]);
-          judgePopups.push({
-            x: endX, y: judgeY - 52,
-            lines: ['CRITICAL', 'BREAK'], color: '#ffd700',
-            combo: combo > 1 ? combo : null, alpha: 1.0, scale: 1.15
-          });
         } else {
           note.holding = false;
           note.heldByKey = null;
@@ -610,7 +730,7 @@
 
   const KEY_MAP = { 'q': 0, 'a': 1, 's': 2, 'd': 3, 'j': 4, 'k': 5, 'l': 6, 'p': 7 };
   window.addEventListener('keydown', (e) => {
-    if (e.repeat) return;
+    if (e.repeat || !gameStarted) return;
     const k = e.key.toLowerCase();
     if (KEY_MAP[k] !== undefined) {
       const keyIdx = KEY_MAP[k];
@@ -630,10 +750,7 @@
   window.addEventListener('keyup', (e) => {
     const k = e.key.toLowerCase();
     if (KEY_MAP[k] !== undefined) {
-      const keyIdx = KEY_MAP[k];
-      const btnEl = document.querySelector(`.btn[data-key="${keyIdx}"]`);
-      if (btnEl) btnEl.classList.remove('active');
-      handleButtonUp(keyIdx);
+      handleButtonUp(KEY_MAP[k]);
     }
   });
 
@@ -766,11 +883,48 @@
     ctx.restore();
   }
 
+  function drawBellShape(centerX, baseY, size) {
+    ctx.save();
+    ctx.shadowColor = '#f1c40f';
+    ctx.shadowBlur = 12;
+    ctx.strokeStyle = '#f1c40f';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(centerX, baseY, size, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.fillStyle = '#fff200';
+    ctx.beginPath();
+    ctx.arc(centerX, baseY, size * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  function drawRedRingShape(centerX, baseY, size) {
+    ctx.save();
+    ctx.shadowColor = '#ff4757';
+    ctx.shadowBlur = 12;
+    ctx.strokeStyle = '#ff4757';
+    ctx.lineWidth = 4.5;
+    ctx.beginPath();
+    ctx.arc(centerX, baseY, size, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(centerX, baseY, size * 0.6, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   function loop() {
     const now = performance.now();
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    spawnChartNotes(now);
+    if (gameStarted) {
+      spawnChartNotes(now);
+    }
 
     const topY = 0;
     const judgeY = canvas.height * 0.90;
@@ -853,9 +1007,9 @@
         if (now >= note.targetTime + note.holdDuration) {
           note.holding = false;
           note.completed = true;
-          score += 800;
+          updateTechnicalScore(10000 / (totalNoteCount || 1));
+          addGeneralScore(800);
           combo++;
-          scoreVal.textContent = score.toLocaleString();
           const endX = note.type === 'sideHold'
             ? (note.side === 'left' ? bottomM.wallLeft - 14 : bottomM.wallRight + 14)
             : bottomM.fullLeft + bottomM.fullWidth * getHoldRatioAtTime(note, note.targetTime + note.holdDuration);
@@ -947,36 +1101,6 @@
           }
           ctx.stroke();
           ctx.restore();
-
-          if (!note.holding && now < note.targetTime) {
-            const head = pts[0];
-            const headW = head.w * 1.12;
-            const headH = 18;
-            ctx.fillStyle = noteColor;
-            ctx.fillRect(head.x - headW / 2, head.y - headH, headW, headH);
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1.2;
-            ctx.strokeRect(head.x - headW / 2, head.y - headH, headW, headH);
-
-            const halfY = (head.y - headH) + headH * 0.5;
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 2.5;
-            ctx.beginPath();
-            ctx.moveTo((head.x - headW / 2) + 3, halfY);
-            ctx.lineTo((head.x + headW / 2) - 3, halfY);
-            ctx.stroke();
-          }
-
-          if (tailTime <= now + travelDuration) {
-            const tail = pts[pts.length - 1];
-            const tailW = tail.w * 1.12;
-            const tailH = 14;
-            ctx.fillStyle = noteColor;
-            ctx.fillRect(tail.x - tailW / 2, tail.y - tailH / 2, tailW, tailH);
-            ctx.strokeStyle = '#ffffff';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(tail.x - tailW / 2, tail.y - tailH / 2, tailW, tailH);
-          }
         }
       }
       else if (note.type === 'tap') {
@@ -1004,6 +1128,20 @@
         ctx.moveTo(x1 + 3, halfY);
         ctx.lineTo(x2 - 3, halfY);
         ctx.stroke();
+      }
+      else if (note.type === 'bell') {
+        const currentY = getNoteY(note.targetTime, now, travelDuration, topY, judgeY);
+        const m = getTrackMetricsAt(currentY, note.targetTime);
+        const ratio = FIXED_LANE_RATIOS[note.lane];
+        const noteCenterX = m.fullLeft + m.fullWidth * ratio;
+        drawBellShape(noteCenterX, currentY, 14);
+      }
+      else if (note.type === 'redRing') {
+        const currentY = getNoteY(note.targetTime, now, travelDuration, topY, judgeY);
+        const m = getTrackMetricsAt(currentY, note.targetTime);
+        const ratio = FIXED_LANE_RATIOS[note.lane];
+        const noteCenterX = m.fullLeft + m.fullWidth * ratio;
+        drawRedRingShape(noteCenterX, currentY, 14);
       }
     }
 
@@ -1034,14 +1172,23 @@
     ctx.restore();
 
     // 5. 판정선
-    ctx.strokeStyle = '#e94560';
-    ctx.lineWidth = 4;
+    ctx.save();
+    ctx.strokeStyle = '#f1c40f';
+    ctx.lineWidth = 5;
     ctx.beginPath();
     ctx.moveTo(bottomM.wallLeft, judgeY);
     ctx.lineTo(bottomM.wallRight, judgeY);
     ctx.stroke();
 
-    // 6. 벽치기 노트 및 슬라이드 노트 렌더링
+    ctx.strokeStyle = '#e67e22';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(bottomM.wallLeft, judgeY + 3);
+    ctx.lineTo(bottomM.wallRight, judgeY + 3);
+    ctx.stroke();
+    ctx.restore();
+
+    // 6. 벽치기 및 슬라이드 노트
     for (let i = 0; i < notes.length; i++) {
       const note = notes[i];
       if (note.completed || note.missed || (note.type !== 'sideHold' && note.hit)) continue;
@@ -1054,7 +1201,6 @@
         const floatGap = 14 + (currentY / judgeY) * 8;
         const wallX = isLeft ? (m.wallLeft - floatGap) : (m.wallRight + floatGap);
         const size = 15 + (currentY / judgeY) * 7;
-
         drawSideNoteShape(wallX, currentY - 6, size, isLeft, false);
       }
       else if (note.type === 'sideHold') {
@@ -1066,7 +1212,6 @@
         if (visibleTailT >= visibleHeadT) {
           const isLeft = note.side === 'left';
           let sidePts = [];
-
           for (let s = 0; s <= steps; s++) {
             const sampleT = visibleHeadT + ((visibleTailT - visibleHeadT) * s) / steps;
             const py = (sampleT <= now) ? judgeY : getNoteY(sampleT, now, travelDuration, topY, judgeY);
@@ -1080,23 +1225,18 @@
             ctx.save();
             ctx.lineJoin = 'round';
             ctx.lineCap = 'round';
-
             ctx.strokeStyle = '#6c5ce7';
             ctx.lineWidth = 10;
             ctx.beginPath();
             ctx.moveTo(sidePts[0].x, sidePts[0].y - 6);
-            for (let s = 1; s < sidePts.length; s++) {
-              ctx.lineTo(sidePts[s].x, sidePts[s].y - 6);
-            }
+            for (let s = 1; s < sidePts.length; s++) ctx.lineTo(sidePts[s].x, sidePts[s].y - 6);
             ctx.stroke();
 
             ctx.strokeStyle = '#221155';
             ctx.lineWidth = 3;
             ctx.beginPath();
             ctx.moveTo(sidePts[0].x, sidePts[0].y - 6);
-            for (let s = 1; s < sidePts.length; s++) {
-              ctx.lineTo(sidePts[s].x, sidePts[s].y - 6);
-            }
+            for (let s = 1; s < sidePts.length; s++) ctx.lineTo(sidePts[s].x, sidePts[s].y - 6);
             ctx.stroke();
             ctx.restore();
           }
@@ -1121,7 +1261,6 @@
         const ratio = FIXED_LANE_RATIOS[note.lane];
         const noteCenterX = m.fullLeft + m.fullWidth * ratio;
         const flickWidth = m.fullWidth / 5.2;
-
         drawFlickNoteShape(noteCenterX, currentY - 4, flickWidth, note.dir);
       }
     }
@@ -1160,7 +1299,6 @@
         ctx.fillStyle = p.color;
         ctx.font = `bold ${Math.round(12 * p.scale)}px sans-serif`;
         ctx.fillText(p.lines[0], p.x, p.y - 14);
-        
         ctx.font = `bold ${Math.round(17 * p.scale)}px sans-serif`;
         ctx.fillText(p.lines[1], p.x, p.y + 4);
       } else {
@@ -1174,17 +1312,15 @@
         ctx.font = `bold ${Math.round(21 * p.scale)}px sans-serif`;
         ctx.fillText(p.combo, p.x, p.y + 26);
       }
-
       ctx.restore();
 
       p.alpha -= 0.025;
       p.y -= 0.5;
       p.scale = Math.max(1.0, p.scale - 0.01);
-
       if (p.alpha <= 0) judgePopups.splice(i, 1);
     }
 
-    // 9. 캐릭터 (탈선 시 시각적으로 경고 표시 가능)
+    // 9. 캐릭터
     const charX = bottomM.fullLeft + bottomM.fullWidth * playerX;
     const derailed = isCharacterDerailed(now);
 
