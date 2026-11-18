@@ -25,7 +25,6 @@
       position: relative; overflow: hidden;
     }
 
-    /* 공통 오버레이 스타일 */
     .screen-overlay {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(11, 11, 22, 0.96); z-index: 100;
@@ -55,7 +54,6 @@
     }
     .primary-btn:active { transform: scale(0.95); }
 
-    /* 리절트 화면 스타일 */
     #result-screen { display: none; }
     .result-card {
       background: rgba(22, 33, 62, 0.9); border: 2px solid #00ffcc;
@@ -297,7 +295,8 @@
     return null;
   }
 
-  let chartData = { bpm: 140, loopTime: 12000, fieldEvents: [], notes: [] };
+  let chartData = { bpm: 140, loopTime: 12000, bossImageUrl: null, fieldEvents: [], notes: [] };
+  let bossImgObj = null;
   let notes = [];
   let totalNoteCount = 0;
   let songStartTime = 0;
@@ -310,6 +309,11 @@
       chartData = await res.json();
       chartLoaded = true;
       prepareChart();
+      if (chartData.bossImageUrl) {
+        bossImgObj = new Image();
+        bossImgObj.crossOrigin = 'anonymous'; // 외부 이미지 링크 로드 허용
+        bossImgObj.src = chartData.bossImageUrl;
+      }
     } catch (e) {
       console.error('채보 로드 실패:', e);
       chartLoaded = true;
@@ -333,7 +337,6 @@
     scoreMainVal.textContent = generalScore.toLocaleString();
   }
 
-  // 배속 설정 UI 연동
   function updateSpeedUI() {
     startSpeedVal.textContent = `${noteSpeedMultiplier.toFixed(1)}x`;
     speedDisplay.textContent = `${noteSpeedMultiplier.toFixed(1)}x`;
@@ -357,7 +360,6 @@
     updateSpeedUI();
   });
 
-  // 게임 시작 및 재시작
   function startGame() {
     startScreen.style.display = 'none';
     resultScreen.style.display = 'none';
@@ -366,7 +368,7 @@
     songStartTime = performance.now();
     notes = [];
     lastPatternCycle = -1;
-    score = 0; generalScore = 0; technicalScore = 0; combo = 0; maxCombo = 0;
+    generalScore = 0; technicalScore = 0; combo = 0; maxCombo = 0;
     counts = { cbreak: 0, break: 0, hit: 0, miss: 0, bell: 0, totalBells: counts.totalBells, damage: 0 };
     scoreMainVal.textContent = '0';
     scoreTechVal.textContent = '0000000';
@@ -376,12 +378,10 @@
   startBtn.addEventListener('click', startGame);
   restartBtn.addEventListener('click', startGame);
 
-  // 리절트 화면 계산 및 표시
   function triggerResultScreen() {
     gameEnded = true;
     resultScreen.style.display = 'flex';
 
-    // 1. 등급 계산
     let grade = 'D';
     const ts = technicalScore;
     if (ts >= 1007500) grade = 'SSS+';
@@ -397,8 +397,6 @@
     else if (ts >= 400000) grade = 'C';
     else grade = 'D';
 
-    // 2. 플래티넘 스코어 별 개수 계산
-    // 플레티넘*2 + 크리티컬 - 2(대미지) - (놓친 벨 개수)
     const missedBells = Math.max(0, counts.totalBells - counts.bell);
     const platScore = (counts.cbreak * 2) + counts.cbreak - (counts.damage * 2) - missedBells;
     const maxPlat = (totalNoteCount * 3) || 1;
@@ -414,7 +412,6 @@
 
     let starStr = starsCount > 0 ? '★'.repeat(starsCount) + '☆'.repeat(5 - starsCount) : '☆☆☆☆☆';
 
-    // 3. 훈장(뱃지) 계산
     let badges = [];
     if (ts === 1010000 && counts.hit === 0 && counts.miss === 0) badges.push('AB+');
     if (counts.hit === 0 && counts.miss === 0) badges.push('AB');
@@ -422,7 +419,6 @@
     if (counts.bell > 0 && counts.bell === counts.totalBells) badges.push('FB');
     if (counts.damage === 0) badges.push('ND');
 
-    // UI 반영
     document.getElementById('res-grade').textContent = grade;
     document.getElementById('res-stars').textContent = starStr;
     document.getElementById('res-tech').textContent = Math.round(ts).toLocaleString();
@@ -485,7 +481,6 @@
   function spawnChartNotes(now) {
     if (!chartLoaded || !gameStarted || gameEnded) return;
     const elapsed = now - songStartTime;
-    // 곡 길이 12초(시뮬레이션 루프) 기준 2사이클(24초) 진행 후 리절트 화면 출력 테스트
     if (elapsed > 24000) {
       triggerResultScreen();
       return;
@@ -503,9 +498,11 @@
           dir: p.dir || 1,
           type: p.type,
           holdDuration: p.holdDuration || 0,
+          laserDuration: p.laserDuration || 0,
           waypoints: p.waypoints || null,
           hit: false, holding: false, heldByKey: null,
-          completed: false, missed: false
+          completed: false, missed: false,
+          lastTickTime: 0
         });
       });
     }
@@ -593,7 +590,7 @@
     let techAdd = 0;
     let generalAdd = 1000;
 
-    const isBarrier = (noteType === 'bell' || noteType === 'redRing');
+    const isBarrier = (noteType === 'bell' || noteType === 'redRing' || noteType === 'laser');
     const maxNotePoints = isBarrier ? (60000 / (totalNoteCount || 1)) : (950000 / (totalNoteCount || 1));
 
     if (minDiff <= 1 * FRAME_MS) {
@@ -623,7 +620,8 @@
     }
 
     if (combo > maxCombo) maxCombo = combo;
-    if (isBarrier) counts.bell++;
+    if (noteType === 'bell') counts.bell++;
+    if (noteType === 'laser') counts.damage++;
 
     cntCBreak.textContent = counts.cbreak;
     cntBreak.textContent = counts.break;
@@ -660,6 +658,7 @@
           if (now >= note.targetTime - SIDE_HIT_WINDOW_MS && now <= note.targetTime + note.holdDuration && !note.holding && note.hit) {
             note.holding = true;
             note.heldByKey = keyIndex;
+            note.lastTickTime = now;
             const wallX = targetSide === 'left' ? bottomM.wallLeft - 14 : bottomM.wallRight + 14;
             spawnHitEffectAt(wallX, judgeY - 12, '#9b59b6');
             return;
@@ -688,6 +687,7 @@
         if (bestSideNote.type === 'sideHold') {
           bestSideNote.holding = true;
           bestSideNote.heldByKey = keyIndex;
+          bestSideNote.lastTickTime = now;
         }
         const wallX = targetSide === 'left' ? bottomM.wallLeft - 14 : bottomM.wallRight + 14;
         spawnHitEffectAt(wallX, judgeY - 12, '#9b59b6');
@@ -711,6 +711,7 @@
         if (now >= note.targetTime - HIT_WINDOW_MS && now <= note.targetTime + note.holdDuration && !note.holding && note.hit) {
           note.holding = true;
           note.heldByKey = keyIndex;
+          note.lastTickTime = now;
           laneFlash[note.lane] = 1.0;
           const laneX = bottomM.fullLeft + bottomM.fullWidth * getHoldRatioAtTime(note, now);
           spawnHitEffectAt(laneX, judgeY, ALL_LANE_COLORS[note.lane]);
@@ -742,6 +743,7 @@
       if (bestMatch.type === 'hold') {
         bestMatch.holding = true;
         bestMatch.heldByKey = keyIndex;
+        bestMatch.lastTickTime = now;
       }
       const laneX = bottomM.fullLeft + bottomM.fullWidth * FIXED_LANE_RATIOS[bestMatch.lane];
       spawnHitEffectAt(laneX, judgeY, ALL_LANE_COLORS[bestMatch.lane]);
@@ -853,7 +855,6 @@
     return FIXED_LANE_RATIOS[note.waypoints[note.waypoints.length - 1].lane];
   }
 
-  // ★ 롱노트 디자인 원복 (오리지널 사다리꼴·띠 형태)
   function drawHoldRibbon(pts, noteColor, isHolding) {
     if (!pts || pts.length < 2) return;
     ctx.save();
@@ -864,12 +865,8 @@
     ctx.globalAlpha = isHolding ? 0.92 : 0.75;
     ctx.beginPath();
     ctx.moveTo(pts[0].x - pts[0].w / 2, pts[0].y);
-    for (let s = 1; s < pts.length; s++) {
-      ctx.lineTo(pts[s].x - pts[s].w / 2, pts[s].y);
-    }
-    for (let s = pts.length - 1; s >= 0; s--) {
-      ctx.lineTo(pts[s].x + pts[s].w / 2, pts[s].y);
-    }
+    for (let s = 1; s < pts.length; s++) ctx.lineTo(pts[s].x - pts[s].w / 2, pts[s].y);
+    for (let s = pts.length - 1; s >= 0; s--) ctx.lineTo(pts[s].x + pts[s].w / 2, pts[s].y);
     ctx.closePath();
     ctx.fill();
 
@@ -878,14 +875,11 @@
     ctx.stroke();
     ctx.globalAlpha = 1.0;
 
-    // 중앙 하이라이트 선
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 3;
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y);
-    for (let s = 1; s < pts.length; s++) {
-      ctx.lineTo(pts[s].x, pts[s].y);
-    }
+    for (let s = 1; s < pts.length; s++) ctx.lineTo(pts[s].x, pts[s].y);
     ctx.stroke();
     ctx.restore();
   }
@@ -899,7 +893,7 @@
     const w = size * 1.05;
 
     ctx.shadowColor = '#9b59b6';
-    ctx.shadowBlur = 14;
+    ctx.shadowBlur = 10;
 
     const grad = ctx.createLinearGradient(-w * 0.4, -h, w * 0.6, h);
     grad.addColorStop(0, '#5f27cd');
@@ -934,7 +928,6 @@
     ctx.shadowBlur = 0;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(-w * 0.08, -2.5, w * 0.58, 5);
-
     ctx.restore();
   }
 
@@ -942,7 +935,7 @@
     ctx.save();
     const barH = 12;
     ctx.shadowColor = '#f39c12';
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 8;
     ctx.fillStyle = '#e67e22';
     ctx.fillRect(centerX - width / 2, baseY - barH, width, barH);
     ctx.strokeStyle = '#fff5d6';
@@ -951,57 +944,15 @@
 
     ctx.fillStyle = '#ffeaa7';
     ctx.fillRect(centerX - width / 2 + 4, baseY - barH / 2 - 1.5, width - 8, 3);
-
-    const chevY = baseY - barH - 10;
-    const colors = ['#e67e22', '#f39c12', '#f1c40f'];
-
-    for (let idx = 0; idx < 3; idx++) {
-      const offsetIndex = idx - 1;
-      const cx = centerX + (offsetIndex * 14 * dir);
-      ctx.fillStyle = dir === 1 ? colors[idx] : colors[2 - idx];
-      ctx.strokeStyle = '#fff3cd';
-      ctx.lineWidth = 1.5;
-
-      ctx.beginPath();
-      if (dir === 1) {
-        ctx.moveTo(cx - 7, chevY - 14); ctx.lineTo(cx + 1, chevY - 14);
-        ctx.lineTo(cx + 9, chevY); ctx.lineTo(cx + 1, chevY + 14);
-        ctx.lineTo(cx - 7, chevY + 14); ctx.lineTo(cx + 1, chevY);
-      } else {
-        ctx.moveTo(cx + 7, chevY - 14); ctx.lineTo(cx - 1, chevY - 14);
-        ctx.lineTo(cx - 9, chevY); ctx.lineTo(cx - 1, chevY + 14);
-        ctx.lineTo(cx + 7, chevY + 14); ctx.lineTo(cx - 1, chevY);
-      }
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    }
     ctx.restore();
   }
 
   function drawBellShape(centerX, baseY, size) {
     ctx.save();
     ctx.shadowColor = '#f1c40f';
-    ctx.shadowBlur = 12;
+    ctx.shadowBlur = 6;
     ctx.strokeStyle = '#f1c40f';
     ctx.lineWidth = 4;
-    ctx.beginPath();
-    ctx.arc(centerX, baseY, size, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.fillStyle = '#fff200';
-    ctx.beginPath();
-    ctx.arc(centerX, baseY, size * 0.4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
-  }
-
-  function drawRedRingShape(centerX, baseY, size) {
-    ctx.save();
-    ctx.shadowColor = '#ff4757';
-    ctx.shadowBlur = 12;
-    ctx.strokeStyle = '#ff4757';
-    ctx.lineWidth = 4.5;
     ctx.beginPath();
     ctx.arc(centerX, baseY, size, 0, Math.PI * 2);
     ctx.stroke();
@@ -1009,8 +960,42 @@
     ctx.strokeStyle = '#ffffff';
     ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.arc(centerX, baseY, size * 0.6, 0, Math.PI * 2);
+    ctx.arc(centerX, baseY, size * 0.5, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawRedRingShape(centerX, baseY, size) {
+    ctx.save();
+    ctx.shadowColor = '#ff4757';
+    ctx.shadowBlur = 6;
+    ctx.strokeStyle = '#ff4757';
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.arc(centerX, baseY, size, 0, Math.PI * 2);
+    ctx.stroke();
+
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(centerX, baseY, size * 0.5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawLaserShape(centerX, baseY, width, height) {
+    ctx.save();
+    ctx.shadowColor = '#ff4757';
+    ctx.shadowBlur = 10;
+    ctx.fillStyle = 'rgba(255, 71, 87, 0.45);';
+    ctx.fillRect(centerX - width / 2, baseY - height, width, height);
+
+    ctx.strokeStyle = '#ff4757';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(centerX - width / 2, baseY - height, width, height);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(centerX - width * 0.2, baseY - height, width * 0.4, height);
     ctx.restore();
   }
 
@@ -1054,6 +1039,8 @@
     ctx.clip();
 
     const topFullM = trackSlices[trackSlices.length - 1].m;
+
+    // 1. 노트 가이드(라인)
     for (let i = 0; i < 6; i++) {
       const ratio = FIXED_LANE_RATIOS[i];
       ctx.strokeStyle = ALL_LANE_COLORS[i];
@@ -1067,11 +1054,17 @@
     }
     ctx.globalAlpha = 1.0;
 
-    // 노트 렌더링
+    // 2. 노트 (가이드 뒤쪽)
     for (let i = notes.length - 1; i >= 0; i--) {
       const note = notes[i];
 
       if ((note.type === 'hold' || note.type === 'sideHold') && note.holding) {
+        if (now - note.lastTickTime >= 150) {
+          note.lastTickTime = now;
+          updateTechnicalScore(2000 / (totalNoteCount || 1));
+          addGeneralScore(200);
+        }
+
         if (note.type === 'hold') {
           const curRatio = getHoldRatioAtTime(note, now);
           const nearestLane = Math.round(curRatio * 7) - 1;
@@ -1093,32 +1086,51 @@
         }
       }
 
-      if ((note.type !== 'hold' && note.type !== 'sideHold' && note.hit) || note.completed || note.missed) {
+      if ((note.type !== 'hold' && note.type !== 'sideHold' && note.type !== 'laser' && note.hit) || note.completed || note.missed) {
         notes.splice(i, 1);
         continue;
       }
 
       const timeLeft = note.targetTime - now;
 
-      if (note.type === 'hold' || note.type === 'sideHold') {
-        const holdEndTime = note.targetTime + note.holdDuration;
-        if (now > holdEndTime + 140) {
-          note.missed = true;
-          triggerMissAt(bottomM.fullLeft, judgeY);
+      if (note.type === 'laser') {
+        const laserElapsed = now - note.targetTime;
+        if (laserElapsed >= note.laserDuration) {
           notes.splice(i, 1);
           continue;
         }
+        if (laserElapsed >= 0 && laserElapsed <= note.laserDuration) {
+          const m = getTrackMetricsAt(judgeY, now);
+          const laneX = m.fullLeft + m.fullWidth * FIXED_LANE_RATIOS[note.lane];
+          const charX = m.fullLeft + m.fullWidth * playerX;
+          if (Math.abs(charX - laneX) < m.fullWidth / 12) {
+            if (!note.hit) {
+              note.hit = true;
+              triggerMissAt(laneX, judgeY);
+            }
+          }
+        }
       } else {
-        const lateWindow = note.type === 'side' ? SIDE_HIT_WINDOW_MS : HIT_WINDOW_MS;
-        if (timeLeft < -lateWindow) {
-          note.missed = true;
-          triggerMissAt(bottomM.fullLeft, judgeY);
-          notes.splice(i, 1);
-          continue;
+        if (note.type === 'hold' || note.type === 'sideHold') {
+          const holdEndTime = note.targetTime + note.holdDuration;
+          if (now > holdEndTime + 140) {
+            note.missed = true;
+            triggerMissAt(bottomM.fullLeft, judgeY);
+            notes.splice(i, 1);
+            continue;
+          }
+        } else {
+          const lateWindow = note.type === 'side' ? SIDE_HIT_WINDOW_MS : HIT_WINDOW_MS;
+          if (timeLeft < -lateWindow) {
+            note.missed = true;
+            triggerMissAt(bottomM.fullLeft, judgeY);
+            notes.splice(i, 1);
+            continue;
+          }
         }
       }
 
-      if (timeLeft > travelDuration) continue;
+      if (timeLeft > travelDuration && note.type !== 'laser') continue;
       const noteColor = ALL_LANE_COLORS[note.lane];
 
       if (note.type === 'hold') {
@@ -1136,7 +1148,6 @@
             const pRatio = getHoldRatioAtTime(note, sampleT);
             pts.push({ x: pm.fullLeft + pm.fullWidth * pRatio, y: py, w: pm.fullWidth / 9.5 });
           }
-          // ★ 오리지널 사다리꼴 롱노트 띠 디자인 적용
           drawHoldRibbon(pts, noteColor, note.holding);
         }
       }
@@ -1170,11 +1181,16 @@
         const m = getTrackMetricsAt(currentY, note.targetTime);
         drawRedRingShape(m.fullLeft + m.fullWidth * FIXED_LANE_RATIOS[note.lane], currentY, 14);
       }
+      else if (note.type === 'laser') {
+        const m = getTrackMetricsAt(judgeY, now);
+        const noteCenterX = m.fullLeft + m.fullWidth * FIXED_LANE_RATIOS[note.lane];
+        drawLaserShape(noteCenterX, judgeY, m.fullWidth / 7, canvas.height * 0.7);
+      }
     }
 
     ctx.restore();
 
-    // 벽 라인
+    // 벽 라인 및 판정선
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.strokeStyle = wallFlash.left > 0 ? '#ffffff' : '#9b59b6';
@@ -1194,14 +1210,13 @@
     if (wallFlash.right > 0) wallFlash.right = Math.max(0, wallFlash.right - 0.08);
     ctx.restore();
 
-    // 판정선
     ctx.strokeStyle = '#f1c40f';
     ctx.lineWidth = 5;
     ctx.beginPath();
     ctx.moveTo(bottomM.wallLeft, judgeY); ctx.lineTo(bottomM.wallRight, judgeY);
     ctx.stroke();
 
-    // 벽치기 및 슬라이드 노트
+    // 사이드 및 플릭 노트
     for (let i = 0; i < notes.length; i++) {
       const note = notes[i];
       if (note.completed || note.missed || (note.type !== 'sideHold' && note.hit)) continue;
@@ -1248,6 +1263,23 @@
         const m = getTrackMetricsAt(currentY, note.targetTime);
         drawFlickNoteShape(m.fullLeft + m.fullWidth * FIXED_LANE_RATIOS[note.lane], currentY - 4, m.fullWidth / 5.2, note.dir);
       }
+    }
+
+    // ★ 상단에서 좌우로 부드러운 8자(리사주 곡선 운동)로 움직이는 대전 상대 이미지
+    if (bossImgObj && bossImgObj.complete) {
+      ctx.save();
+      const t = now * 0.0015; // 속도 조절
+      const centerX = canvas.width / 2;
+      const centerY = 50;
+      const xRange = canvas.width * 0.28;
+      const yRange = 18;
+
+      // 8자 운동 공식 (레렘니스케이트 / 리사주 곡선)
+      const bossX = centerX + xRange * Math.sin(t);
+      const bossY = centerY + yRange * Math.sin(2 * t);
+
+      ctx.drawImage(bossImgObj, bossX - 35, bossY - 35, 70, 70);
+      ctx.restore();
     }
 
     // 타격 이펙트
