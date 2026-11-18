@@ -1,6 +1,7 @@
 {
   "bpm": 140,
   "loopTime": 12000,
+  "bossImageUrl": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200",
   "fieldEvents": [
     { "t": 0,     "clipL": 0.0,   "clipR": 1.0 },
     { "t": 3800,  "clipL": 0.0,   "clipR": 1.0 },
@@ -17,6 +18,7 @@
     { "time": 1700, "lane": 4, "type": "bell" },
     { "time": 1900, "side": "right", "type": "sideHold", "holdDuration": 900 },
     { "time": 2100, "lane": 1, "type": "redRing" },
+    { "time": 2100, "lane": 3, "type": "laser", "laserDuration": 1500 },
     { "time": 2400, "lane": 0, "type": "hold", "holdDuration": 1200, "waypoints": [
       { "offset": 0, "lane": 0 },
       { "offset": 600, "lane": 3 },
