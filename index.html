@@ -311,7 +311,7 @@
       prepareChart();
       if (chartData.bossImageUrl) {
         bossImgObj = new Image();
-        bossImgObj.crossOrigin = 'anonymous'; // 외부 이미지 링크 로드 허용
+        bossImgObj.crossOrigin = 'anonymous';
         bossImgObj.src = chartData.bossImageUrl;
       }
     } catch (e) {
@@ -965,11 +965,12 @@
     ctx.restore();
   }
 
+  // ★ 자홍색으로 통일된 도넛 형태의 빨간링(탄막)
   function drawRedRingShape(centerX, baseY, size) {
     ctx.save();
-    ctx.shadowColor = '#ff4757';
+    ctx.shadowColor = '#ff00ff';
     ctx.shadowBlur = 6;
-    ctx.strokeStyle = '#ff4757';
+    ctx.strokeStyle = '#ff00ff';
     ctx.lineWidth = 4;
     ctx.beginPath();
     ctx.arc(centerX, baseY, size, 0, Math.PI * 2);
@@ -983,14 +984,26 @@
     ctx.restore();
   }
 
-  function drawLaserShape(centerX, baseY, width, height) {
+  // ★ 자홍 반투명 영역으로 표시되는 레이저 예고 및 발사 효과
+  function drawLaserIndicator(centerX, baseY, width, height) {
     ctx.save();
-    ctx.shadowColor = '#ff4757';
-    ctx.shadowBlur = 10;
-    ctx.fillStyle = 'rgba(255, 71, 87, 0.45);';
+    ctx.fillStyle = 'rgba(255, 0, 255, 0.22)';
     ctx.fillRect(centerX - width / 2, baseY - height, width, height);
 
-    ctx.strokeStyle = '#ff4757';
+    ctx.strokeStyle = 'rgba(255, 0, 255, 0.6)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(centerX - width / 2, baseY - height, width, height);
+    ctx.restore();
+  }
+
+  function drawLaserShape(centerX, baseY, width, height) {
+    ctx.save();
+    ctx.shadowColor = '#ff00ff';
+    ctx.shadowBlur = 8;
+    ctx.fillStyle = 'rgba(255, 0, 255, 0.55)';
+    ctx.fillRect(centerX - width / 2, baseY - height, width, height);
+
+    ctx.strokeStyle = '#ff00ff';
     ctx.lineWidth = 2;
     ctx.strokeRect(centerX - width / 2, baseY - height, width, height);
 
@@ -1184,7 +1197,13 @@
       else if (note.type === 'laser') {
         const m = getTrackMetricsAt(judgeY, now);
         const noteCenterX = m.fullLeft + m.fullWidth * FIXED_LANE_RATIOS[note.lane];
-        drawLaserShape(noteCenterX, judgeY, m.fullWidth / 7, canvas.height * 0.7);
+        const laserElapsed = now - note.targetTime;
+        // 레이저 도달 전(준비 시간)에는 자홍 반투명 예고 영역 표시, 도달 후에는 레이저 발사
+        if (laserElapsed < 0) {
+          drawLaserIndicator(noteCenterX, judgeY, m.fullWidth / 7, canvas.height * 0.7);
+        } else {
+          drawLaserShape(noteCenterX, judgeY, m.fullWidth / 7, canvas.height * 0.7);
+        }
       }
     }
 
@@ -1265,16 +1284,15 @@
       }
     }
 
-    // ★ 상단에서 좌우로 부드러운 8자(리사주 곡선 운동)로 움직이는 대전 상대 이미지
+    // 상단 8자 운동 보스 이미지
     if (bossImgObj && bossImgObj.complete) {
       ctx.save();
-      const t = now * 0.0015; // 속도 조절
+      const t = now * 0.0015;
       const centerX = canvas.width / 2;
       const centerY = 50;
       const xRange = canvas.width * 0.28;
       const yRange = 18;
 
-      // 8자 운동 공식 (레렘니스케이트 / 리사주 곡선)
       const bossX = centerX + xRange * Math.sin(t);
       const bossY = centerY + yRange * Math.sin(2 * t);
 
