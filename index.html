@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Ongeki Style Mobile Rhythm</title>
+  <title>Ongeki Style Mobile Rhythm Game</title>
   <style>
     * {
       box-sizing: border-box;
@@ -62,7 +62,21 @@
     }
     .result-row { display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; }
     .result-grade { font-size: 32px; font-weight: 900; color: #ffd700; text-shadow: 0 0 12px rgba(255,215,0,0.6); }
-    .result-stars { font-size: 20px; color: #f1c40f; letter-spacing: 2px; }
+    .result-stars { font-size: 22px; color: #f1c40f; letter-spacing: 2px; }
+    
+    /* 무지개빛 별 효과 스타일 */
+    .rainbow-stars {
+      background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      animation: rainbowGlow 2s linear infinite;
+      filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.8));
+    }
+    @keyframes rainbowGlow {
+      0% { filter: hue-rotate(0deg) drop-shadow(0 0 8px rgba(255,255,255,0.8)); }
+      100% { filter: hue-rotate(360deg) drop-shadow(0 0 8px rgba(255,255,255,0.8)); }
+    }
+
     .badges-box { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 4px; }
     .badge {
       background: #1e293b; border: 1px solid #38bdf8; color: #38bdf8;
@@ -411,6 +425,15 @@
     else starsCount = 0;
 
     let starStr = starsCount > 0 ? '★'.repeat(starsCount) + '☆'.repeat(5 - starsCount) : '☆☆☆☆☆';
+    const starElem = document.getElementById('res-stars');
+    starElem.textContent = starStr;
+
+    // 플래티넘 스코어 99% 이상인 경우 무지개빛 별 효과 적용
+    if (platRatio >= 0.99) {
+      starElem.className = 'result-stars rainbow-stars';
+    } else {
+      starElem.className = 'result-stars';
+    }
 
     let badges = [];
     if (ts === 1010000 && counts.hit === 0 && counts.miss === 0) badges.push('AB+');
@@ -420,7 +443,6 @@
     if (counts.damage === 0) badges.push('ND');
 
     document.getElementById('res-grade').textContent = grade;
-    document.getElementById('res-stars').textContent = starStr;
     document.getElementById('res-tech').textContent = Math.round(ts).toLocaleString();
     document.getElementById('res-combo').textContent = maxCombo;
     document.getElementById('res-cbreak').textContent = counts.cbreak;
@@ -476,6 +498,14 @@
       activeWidth: wallRight - wallLeft,
       clipL: clip.clipL, clipR: clip.clipR
     };
+  }
+
+  function getLaneXAtTime(laneIndex, targetTime, y) {
+    const m = getTrackMetricsAt(y, targetTime);
+    // 가이드(레일) 안쪽 활성 영역 내에서 레인 위치 계산
+    const laneRatio = FIXED_LANE_RATIOS[laneIndex];
+    // 전체 폭 기준이 아니라 activeWidth(클립된 영역) 내부에서 균등 배분하도록 보정
+    return m.wallLeft + m.activeWidth * (laneIndex / 5.0);
   }
 
   function spawnChartNotes(now) {
@@ -563,7 +593,6 @@
     if (isCharacterDerailed(now)) return;
 
     const judgeY = canvas.height * 0.90;
-    const bottomM = getTrackMetricsAt(judgeY, now);
 
     for (let note of notes) {
       if (note.type === 'flick' && !note.hit && !note.missed) {
@@ -571,7 +600,7 @@
         if (diff <= 12 * FRAME_MS && note.dir === moveDir) {
           note.hit = true;
           laneFlash[note.lane] = 1.0;
-          const laneX = bottomM.fullLeft + bottomM.fullWidth * FIXED_LANE_RATIOS[note.lane];
+          const laneX = getLaneXAtTime(note.lane, note.targetTime, judgeY);
           spawnHitEffectAt(laneX, judgeY - 12, '#ffd700');
           processJudgeAt(laneX, judgeY - 12, 0, 'flick');
           break;
@@ -713,7 +742,7 @@
           note.heldByKey = keyIndex;
           note.lastTickTime = now;
           laneFlash[note.lane] = 1.0;
-          const laneX = bottomM.fullLeft + bottomM.fullWidth * getHoldRatioAtTime(note, now);
+          const laneX = getLaneXAtTime(note.lane, now, judgeY);
           spawnHitEffectAt(laneX, judgeY, ALL_LANE_COLORS[note.lane]);
           return;
         }
@@ -745,14 +774,14 @@
         bestMatch.heldByKey = keyIndex;
         bestMatch.lastTickTime = now;
       }
-      const laneX = bottomM.fullLeft + bottomM.fullWidth * FIXED_LANE_RATIOS[bestMatch.lane];
+      const laneX = getLaneXAtTime(bestMatch.lane, bestMatch.targetTime, judgeY);
       spawnHitEffectAt(laneX, judgeY, ALL_LANE_COLORS[bestMatch.lane]);
       processJudgeAt(laneX, judgeY, validCandidates[0].diff, bestMatch.type);
     } else if (earlyMissCandidates.length > 0) {
       earlyMissCandidates.sort((a, b) => a.diff - b.diff);
       const missedNote = earlyMissCandidates[0].note;
       missedNote.missed = true;
-      const laneX = bottomM.fullLeft + bottomM.fullWidth * FIXED_LANE_RATIOS[missedNote.lane];
+      const laneX = getLaneXAtTime(missedNote.lane, missedNote.targetTime, judgeY);
       triggerMissAt(laneX, judgeY);
     } else {
       targetLanes.forEach(l => laneFlash[l] = Math.max(laneFlash[l], 0.35));
@@ -779,7 +808,7 @@
 
           const endX = note.type === 'sideHold'
             ? (note.side === 'left' ? bottomM.wallLeft - 14 : bottomM.wallRight + 14)
-            : bottomM.fullLeft + bottomM.fullWidth * getHoldRatioAtTime(note, holdEndTime);
+            : getLaneXAtTime(note.lane, holdEndTime, judgeY);
 
           spawnHitEffectAt(endX, judgeY, note.type === 'sideHold' ? '#9b59b6' : ALL_LANE_COLORS[note.lane]);
         } else {
@@ -965,7 +994,6 @@
     ctx.restore();
   }
 
-  // ★ 자홍색으로 통일된 도넛 형태의 빨간링(탄막)
   function drawRedRingShape(centerX, baseY, size) {
     ctx.save();
     ctx.shadowColor = '#ff00ff';
@@ -984,7 +1012,6 @@
     ctx.restore();
   }
 
-  // ★ 자홍 반투명 영역으로 표시되는 레이저 예고 및 발사 효과
   function drawLaserIndicator(centerX, baseY, width, height) {
     ctx.save();
     ctx.fillStyle = 'rgba(255, 0, 255, 0.22)';
@@ -1051,23 +1078,26 @@
     ctx.closePath();
     ctx.clip();
 
-    const topFullM = trackSlices[trackSlices.length - 1].m;
-
-    // 1. 노트 가이드(라인)
+    // ★ 웨이포인트(꺾이는 경로)를 반영한 가이드 라인 렌더링
     for (let i = 0; i < 6; i++) {
       const ratio = FIXED_LANE_RATIOS[i];
       ctx.strokeStyle = ALL_LANE_COLORS[i];
       ctx.lineWidth = 2 + laneFlash[i] * 3;
       ctx.globalAlpha = 0.55 + laneFlash[i] * 0.45;
+      
       ctx.beginPath();
-      ctx.moveTo(topFullM.fullLeft + topFullM.fullWidth * ratio, topY);
-      ctx.lineTo(bottomM.fullLeft + bottomM.fullWidth * ratio, judgeY);
+      for (let s = 0; s < trackSlices.length; s++) {
+        const slice = trackSlices[s];
+        const lx = slice.m.wallLeft + slice.m.activeWidth * (i / 5.0);
+        if (s === 0) ctx.moveTo(lx, slice.y);
+        else ctx.lineTo(lx, slice.y);
+      }
       ctx.stroke();
       if (laneFlash[i] > 0) laneFlash[i] = Math.max(0, laneFlash[i] - 0.08);
     }
     ctx.globalAlpha = 1.0;
 
-    // 2. 노트 (가이드 뒤쪽)
+    // 노트 렌더링 (가이드 라인 뒤쪽에 정확히 배치)
     for (let i = notes.length - 1; i >= 0; i--) {
       const note = notes[i];
 
@@ -1083,7 +1113,8 @@
           const nearestLane = Math.round(curRatio * 7) - 1;
           if (nearestLane >= 0 && nearestLane < 6) laneFlash[nearestLane] = 0.8;
           if (Math.random() < 0.35) {
-            spawnHitEffectAt(bottomM.fullLeft + bottomM.fullWidth * curRatio, judgeY, ALL_LANE_COLORS[note.lane]);
+            const curM = getTrackMetricsAt(judgeY, now);
+            spawnHitEffectAt(curM.wallLeft + curM.activeWidth * (note.lane / 5.0), judgeY, ALL_LANE_COLORS[note.lane]);
           }
         } else {
           wallFlash[note.side] = 0.8;
@@ -1114,7 +1145,7 @@
         }
         if (laserElapsed >= 0 && laserElapsed <= note.laserDuration) {
           const m = getTrackMetricsAt(judgeY, now);
-          const laneX = m.fullLeft + m.fullWidth * FIXED_LANE_RATIOS[note.lane];
+          const laneX = m.wallLeft + m.activeWidth * (note.lane / 5.0);
           const charX = m.fullLeft + m.fullWidth * playerX;
           if (Math.abs(charX - laneX) < m.fullWidth / 12) {
             if (!note.hit) {
@@ -1159,7 +1190,8 @@
             const py = (sampleT <= now) ? judgeY : getNoteY(sampleT, now, travelDuration, topY, judgeY);
             const pm = getTrackMetricsAt(py, sampleT);
             const pRatio = getHoldRatioAtTime(note, sampleT);
-            pts.push({ x: pm.fullLeft + pm.fullWidth * pRatio, y: py, w: pm.fullWidth / 9.5 });
+            // 꺾이는 가이드 내에서의 위치 반영
+            pts.push({ x: pm.wallLeft + pm.activeWidth * (pRatio), y: py, w: pm.fullWidth / 9.5 });
           }
           drawHoldRibbon(pts, noteColor, note.holding);
         }
@@ -1167,7 +1199,7 @@
       else if (note.type === 'tap') {
         const currentY = getNoteY(note.targetTime, now, travelDuration, topY, judgeY);
         const m = getTrackMetricsAt(currentY, note.targetTime);
-        const noteCenterX = m.fullLeft + m.fullWidth * FIXED_LANE_RATIOS[note.lane];
+        const noteCenterX = m.wallLeft + m.activeWidth * (note.lane / 5.0);
         const bw = m.fullWidth / 8;
         const bh = 18;
 
@@ -1187,18 +1219,17 @@
       else if (note.type === 'bell') {
         const currentY = getNoteY(note.targetTime, now, travelDuration, topY, judgeY);
         const m = getTrackMetricsAt(currentY, note.targetTime);
-        drawBellShape(m.fullLeft + m.fullWidth * FIXED_LANE_RATIOS[note.lane], currentY, 14);
+        drawBellShape(m.wallLeft + m.activeWidth * (note.lane / 5.0), currentY, 14);
       }
       else if (note.type === 'redRing') {
         const currentY = getNoteY(note.targetTime, now, travelDuration, topY, judgeY);
         const m = getTrackMetricsAt(currentY, note.targetTime);
-        drawRedRingShape(m.fullLeft + m.fullWidth * FIXED_LANE_RATIOS[note.lane], currentY, 14);
+        drawRedRingShape(m.wallLeft + m.activeWidth * (note.lane / 5.0), currentY, 14);
       }
       else if (note.type === 'laser') {
         const m = getTrackMetricsAt(judgeY, now);
-        const noteCenterX = m.fullLeft + m.fullWidth * FIXED_LANE_RATIOS[note.lane];
+        const noteCenterX = m.wallLeft + m.activeWidth * (note.lane / 5.0);
         const laserElapsed = now - note.targetTime;
-        // 레이저 도달 전(준비 시간)에는 자홍 반투명 예고 영역 표시, 도달 후에는 레이저 발사
         if (laserElapsed < 0) {
           drawLaserIndicator(noteCenterX, judgeY, m.fullWidth / 7, canvas.height * 0.7);
         } else {
@@ -1280,11 +1311,11 @@
       else if (note.type === 'flick') {
         const currentY = getNoteY(note.targetTime, now, travelDuration, topY, judgeY);
         const m = getTrackMetricsAt(currentY, note.targetTime);
-        drawFlickNoteShape(m.fullLeft + m.fullWidth * FIXED_LANE_RATIOS[note.lane], currentY - 4, m.fullWidth / 5.2, note.dir);
+        drawFlickNoteShape(m.wallLeft + m.activeWidth * (note.lane / 5.0), currentY - 4, m.fullWidth / 5.2, note.dir);
       }
     }
 
-    // 상단 8자 운동 보스 이미지
+    // 8자 운동 보스 이미지
     if (bossImgObj && bossImgObj.complete) {
       ctx.save();
       const t = now * 0.0015;
@@ -1300,7 +1331,7 @@
       ctx.restore();
     }
 
-    // 타격 이펙트
+    // 타격 이펙트 및 판정 텍스트
     for (let i = hitEffects.length - 1; i >= 0; i--) {
       let ef = hitEffects[i];
       ctx.save();
@@ -1313,7 +1344,6 @@
       if (ef.alpha <= 0) hitEffects.splice(i, 1);
     }
 
-    // 판정 텍스트
     for (let i = judgePopups.length - 1; i >= 0; i--) {
       let p = judgePopups[i];
       ctx.save();
@@ -1332,7 +1362,6 @@
       if (p.alpha <= 0) judgePopups.splice(i, 1);
     }
 
-    // 캐릭터
     const charX = bottomM.fullLeft + bottomM.fullWidth * playerX;
     const derailed = isCharacterDerailed(now);
     ctx.fillStyle = derailed ? '#ff4757' : '#00ffcc';
