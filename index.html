@@ -25,46 +25,69 @@
       position: relative; overflow: hidden;
     }
 
+    /* 공통 오버레이 */
     .screen-overlay {
       position: absolute; top: 0; left: 0; width: 100%; height: 100%;
       background: rgba(11, 11, 22, 0.96); z-index: 100;
-      display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 18px;
-      color: white; padding: 20px; text-align: center;
+      display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 14px;
+      color: white; padding: 18px; text-align: center;
+      overflow-y: auto;
     }
-    .screen-overlay h1 { font-size: 26px; color: #00ffcc; margin: 0; text-shadow: 0 0 10px rgba(0,255,204,0.5); }
+    .screen-overlay h1 { font-size: 24px; color: #00ffcc; margin: 0 0 4px 0; text-shadow: 0 0 10px rgba(0,255,204,0.5); }
 
     .config-group {
       background: rgba(22, 33, 62, 0.9); border: 1px solid #e94560;
-      padding: 14px 20px; border-radius: 12px; width: 100%; max-width: 280px;
+      padding: 12px 16px; border-radius: 12px; width: 100%; max-width: 310px;
+      text-align: left;
     }
-    .config-group label { font-size: 14px; font-weight: bold; display: block; margin-bottom: 8px; color: #ff6b81; }
-    .speed-select-box { display: flex; justify-content: center; align-items: center; gap: 12px; }
+    .config-group label { font-size: 13px; font-weight: bold; display: block; margin-bottom: 8px; color: #ff6b81; }
+    
+    /* 로비 선택 리스트 */
+    .select-list {
+      display: flex; flex-direction: column; gap: 6px; max-height: 110px; overflow-y: auto;
+    }
+    .select-item {
+      background: #0f3460; border: 1px solid #334155; border-radius: 8px;
+      padding: 8px 10px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;
+      font-size: 12px; transition: all 0.12s;
+    }
+    .select-item.selected {
+      background: #1e293b; border-color: #00ffcc; box-shadow: 0 0 8px rgba(0,255,204,0.35);
+    }
+    .select-item .item-sub { font-size: 11px; color: #94a3b8; }
+
+    .speed-select-box { display: flex; justify-content: center; align-items: center; gap: 14px; }
     .speed-sel-btn {
-      background: #e94560; border: none; color: white; width: 36px; height: 36px;
+      background: #e94560; border: none; color: white; width: 34px; height: 34px;
       border-radius: 8px; font-weight: bold; font-size: 18px; cursor: pointer;
     }
     .speed-sel-btn:active { background: #ff6b81; }
-    #start-speed-val { font-size: 18px; font-weight: bold; width: 60px; }
+    #start-speed-val { font-size: 17px; font-weight: bold; width: 60px; text-align: center; }
 
     .primary-btn {
       background: linear-gradient(135deg, #00ffcc, #00b894); border: none; color: #111;
-      font-size: 18px; font-weight: bold; padding: 12px 36px; border-radius: 12px;
-      cursor: pointer; box-shadow: 0 0 20px rgba(0,255,204,0.4); margin-top: 10px;
+      font-size: 16px; font-weight: bold; padding: 11px 32px; border-radius: 12px;
+      cursor: pointer; box-shadow: 0 0 18px rgba(0,255,204,0.4); margin-top: 4px;
       transition: transform 0.1s;
     }
     .primary-btn:active { transform: scale(0.95); }
+    .secondary-btn {
+      background: #1e293b; border: 1px solid #64748b; color: #e2e8f0;
+      font-size: 14px; font-weight: bold; padding: 9px 24px; border-radius: 10px;
+      cursor: pointer;
+    }
 
+    /* 리절트 화면 */
     #result-screen { display: none; }
     .result-card {
-      background: rgba(22, 33, 62, 0.9); border: 2px solid #00ffcc;
-      border-radius: 14px; padding: 16px; width: 100%; max-width: 320px;
-      display: flex; flex-direction: column; gap: 10px;
+      background: rgba(22, 33, 62, 0.92); border: 2px solid #00ffcc;
+      border-radius: 14px; padding: 14px 16px; width: 100%; max-width: 320px;
+      display: flex; flex-direction: column; gap: 7px;
     }
-    .result-row { display: flex; justify-content: space-between; font-size: 14px; font-weight: bold; }
-    .result-grade { font-size: 32px; font-weight: 900; color: #ffd700; text-shadow: 0 0 12px rgba(255,215,0,0.6); }
+    .result-row { display: flex; justify-content: space-between; font-size: 13px; font-weight: bold; }
+    .result-grade { font-size: 32px; font-weight: 900; color: #ffd700; text-shadow: 0 0 12px rgba(255,215,0,0.6); line-height: 1.1; }
     .result-stars { font-size: 22px; color: #f1c40f; letter-spacing: 2px; }
     
-    /* 무지개빛 별 효과 스타일 */
     .rainbow-stars {
       background: linear-gradient(90deg, #ff0000, #ff7f00, #ffff00, #00ff00, #0000ff, #4b0082, #8b00ff);
       -webkit-background-clip: text;
@@ -80,9 +103,11 @@
     .badges-box { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 4px; }
     .badge {
       background: #1e293b; border: 1px solid #38bdf8; color: #38bdf8;
-      font-size: 10px; font-weight: bold; padding: 3px 8px; border-radius: 6px;
+      font-size: 11px; font-weight: bold; padding: 3px 8px; border-radius: 6px;
     }
+    .result-btn-row { display: flex; gap: 10px; margin-top: 4px; }
 
+    /* 플레이 영역 & 원작 고증 HUD */
     #play-area { flex: 68; position: relative; width: 100%; overflow: hidden; }
     canvas { width: 100%; height: 100%; display: block; }
     
@@ -92,38 +117,95 @@
       pointer-events: none; z-index: 10;
     }
 
-    #left-panel { display: flex; flex-direction: column; gap: 4px; pointer-events: auto; }
-    #speed-control {
-      display: flex; align-items: center; gap: 6px;
-      background: rgba(22, 33, 62, 0.85); border: 1px solid #e94560;
-      padding: 3px 6px; border-radius: 6px; color: white; font-size: 11px; font-weight: bold;
+    /* 좌상단 HUD: SCORE -> 캐릭터/TEAM LIFE -> 판정 카운터 -> TECH/PLAT SCORE */
+    #hud-left {
+      display: flex; flex-direction: column; gap: 5px; width: 145px;
     }
-    .speed-btn {
-      background: #e94560; border: none; color: white; width: 20px; height: 20px;
-      border-radius: 4px; font-weight: bold; font-size: 12px; cursor: pointer;
-      display: flex; justify-content: center; align-items: center;
+    .hud-score-main {
+      background: rgba(15, 23, 42, 0.88); border: 1px solid #94a3b8;
+      border-radius: 6px; padding: 3px 7px; color: #fff;
+    }
+    .hud-label-xs { font-size: 9px; color: #cbd5e1; font-weight: bold; letter-spacing: 0.5px; display: block; }
+    .hud-val-lg { font-size: 15px; font-weight: 900; font-family: monospace; letter-spacing: 0.5px; }
+
+    .hud-char-life-row {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .char-card-mini {
+      width: 44px; height: 52px; border-radius: 6px; border: 1.5px solid #00ffcc;
+      background: #1e293b; overflow: hidden; display: flex; flex-direction: column;
+      justify-content: flex-end; position: relative; flex-shrink: 0;
+    }
+    .char-card-mini img {
+      position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover;
+    }
+    .char-stat-tag {
+      position: relative; z-index: 2; background: rgba(0,0,0,0.78);
+      color: #ffd700; font-size: 9px; font-weight: bold; text-align: center; padding: 1px 0;
     }
 
-    #judge-counter {
-      background: rgba(15, 23, 42, 0.9); border: 1px solid #4a5568;
-      padding: 6px 8px; border-radius: 8px; color: white; font-size: 11px;
-      display: flex; flex-direction: column; gap: 2px; min-width: 110px;
+    .life-hex-box {
+      flex: 1; background: rgba(6, 78, 59, 0.9); border: 2px solid #10b981;
+      border-radius: 10px; padding: 4px 6px; text-align: center; color: #fff;
+      box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
     }
-    .jc-row { display: flex; justify-content: space-between; }
+    .life-hex-title { font-size: 8px; color: #6ee7b7; font-weight: bold; display: block; }
+    .life-hex-val { font-size: 16px; font-weight: 900; }
+
+    #judge-counter {
+      background: rgba(15, 23, 42, 0.88); border: 1px solid #475569;
+      padding: 5px 7px; border-radius: 6px; color: white; font-size: 10px;
+      display: flex; flex-direction: column; gap: 1.5px;
+    }
+    .jc-row { display: flex; justify-content: space-between; font-weight: bold; }
+    .c-combo { color: #ffffff; border-bottom: 1px solid #334155; padding-bottom: 2px; margin-bottom: 1px; }
     .c-cbreak { color: #00ffcc; }
     .c-break { color: #ff4757; }
     .c-hit { color: #2ed573; }
     .c-miss { color: #a4b0be; }
     .c-bell { color: #f1c40f; }
 
-    #score-boards { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
-    .score-box {
-      background: rgba(22, 33, 62, 0.85); border-radius: 8px; padding: 4px 10px; text-align: right;
+    .hud-tech-plat {
+      background: rgba(15, 23, 42, 0.88); border: 1px solid #00ffcc;
+      border-radius: 6px; padding: 4px 7px; display: flex; flex-direction: column; gap: 2px;
     }
-    #score-box-main { border: 1px solid #ffffff; color: #ffffff; font-size: 12px; font-weight: bold; }
-    #score-box-tech { border: 1px solid #00ffcc; color: #00ffcc; font-size: 13px; font-weight: bold; }
-    .score-val { font-size: 15px; display: block; }
+    .tech-line { color: #00ffcc; font-size: 12px; font-weight: 900; font-family: monospace; display: flex; justify-content: space-between; align-items: baseline; }
+    .plat-line { color: #e2e8f0; font-size: 10px; font-weight: bold; font-family: monospace; display: flex; justify-content: space-between; }
 
+    /* 우상단 HUD: 적 보스 패널 */
+    #hud-right {
+      display: flex; flex-direction: column; align-items: flex-end; gap: 5px; width: 135px;
+    }
+    .boss-header-tag {
+      background: rgba(127, 29, 29, 0.9); border: 1px solid #f87171;
+      border-radius: 6px; padding: 2px 7px; color: #fecaca; font-size: 10px; font-weight: bold;
+      max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .boss-status-row {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .boss-hp-hex {
+      background: rgba(136, 19, 55, 0.9); border: 2px solid #f43f5e;
+      border-radius: 10px; padding: 4px 8px; text-align: center; color: #fff;
+      box-shadow: 0 0 8px rgba(244, 63, 94, 0.4);
+    }
+    .boss-hp-val { font-size: 15px; font-weight: 900; display: block; line-height: 1.1; }
+    .boss-ok-count { font-size: 9px; color: #fda4af; font-weight: bold; }
+
+    .boss-card-mini {
+      width: 44px; height: 52px; border-radius: 6px; border: 1.5px solid #f43f5e;
+      background: #1e293b; overflow: hidden; position: relative; flex-shrink: 0;
+    }
+    .boss-card-mini img {
+      width: 100%; height: 100%; object-fit: cover;
+    }
+    .boss-lv-badge {
+      position: absolute; bottom: 0; right: 0; left: 0;
+      background: rgba(0, 0, 0, 0.8); color: #facc15;
+      font-size: 9px; font-weight: 900; text-align: center; padding: 1px 0;
+    }
+
+    /* 하단 조작부 (유지) */
     #controller-area {
       flex: 32; background: #16213e; display: flex; flex-direction: column; padding: 6px; gap: 6px;
       border-top: 2px solid #e94560;
@@ -157,68 +239,127 @@
 <body oncontextmenu="return false;">
 
 <div id="game-container">
-  <!-- 게임 시작 설정 화면 오버레이 -->
+  <!-- 시작창 (로비 화면) -->
   <div id="start-screen" class="screen-overlay">
     <h1>ONGEKI MOBILE</h1>
+
     <div class="config-group">
-      <label>노트 배속 (변속) 설정</label>
+      <label>1. 채보 선택 (chart{Lv}L{n}.json)</label>
+      <div class="select-list" id="chart-select-list">
+        <div class="select-item selected" data-file="chart1L1.json" data-lv="1">
+          <span>기본 채보 (chart1L1)</span>
+          <span class="item-sub">BOSS Lv.1</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="config-group">
+      <label>2. 캐릭터 선택 (char{n}.json)</label>
+      <div class="select-list" id="char-select-list">
+        <div class="select-item selected" data-file="char1.json">
+          <span>기본 캐릭터 (char1)</span>
+          <span class="item-sub">STAT 100</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="config-group">
+      <label>3. 노트 배속 설정</label>
       <div class="speed-select-box">
         <button class="speed-sel-btn" id="modal-speed-down">-</button>
         <span id="start-speed-val">1.0x</span>
         <button class="speed-sel-btn" id="modal-speed-up">+</button>
       </div>
     </div>
+
     <button class="primary-btn" id="start-btn">GAME START</button>
   </div>
 
-  <!-- 게임 리절트(결산) 화면 오버레이 -->
+  <!-- 리절트 화면 -->
   <div id="result-screen" class="screen-overlay">
     <h1>PLAY RESULT</h1>
     <div class="result-card">
       <div class="result-grade" id="res-grade">SSS+</div>
       <div class="result-stars" id="res-stars">★★★★★</div>
+      <div class="result-row"><span>SCORE</span><span id="res-general">0</span></div>
       <div class="result-row"><span>TECHNICAL SCORE</span><span id="res-tech">1,010,000</span></div>
+      <div class="result-row"><span>PLATINUM SCORE</span><span id="res-plat">0</span></div>
       <div class="result-row"><span>MAX COMBO</span><span id="res-combo">0</span></div>
       <div class="result-row"><span>CRITICAL BREAK</span><span id="res-cbreak">0</span></div>
       <div class="result-row"><span>BREAK</span><span id="res-break">0</span></div>
       <div class="result-row"><span>HIT</span><span id="res-hit">0</span></div>
       <div class="result-row"><span>MISS</span><span id="res-miss">0</span></div>
-      <div class="result-row"><span>BELL</span><span id="res-bell">0</span></div>
-      <div class="badges-box" id="res-badges">
-        <span class="badge">AB+</span><span class="badge">FB</span><span class="badge">ND</span>
-      </div>
+      <div class="result-row"><span>BELL</span><span id="res-bell">0 / 0</span></div>
+      <div class="badges-box" id="res-badges"></div>
     </div>
-    <button class="primary-btn" id="restart-btn">RETRY</button>
+    <div class="result-btn-row">
+      <button class="secondary-btn" id="lobby-btn">LOBBY</button>
+      <button class="primary-btn" id="restart-btn" style="margin-top:0; padding:9px 26px; font-size:15px;">RETRY</button>
+    </div>
   </div>
 
+  <!-- 인게임 플레이 화면 -->
   <div id="play-area">
     <div id="hud-top">
-      <div id="left-panel">
-        <div id="speed-control">
-          <button class="speed-btn" id="speed-down">-</button>
-          <span id="speed-display">1.0x</span>
-          <button class="speed-btn" id="speed-up">+</button>
+      <!-- 좌상단 원작 고증 HUD -->
+      <div id="hud-left">
+        <div class="hud-score-main">
+          <span class="hud-label-xs">SCORE</span>
+          <span class="hud-val-lg" id="score-main-val">000000000</span>
         </div>
+
+        <div class="hud-char-life-row">
+          <div class="char-card-mini">
+            <img id="hud-char-img" src="" alt="" style="display:none;">
+            <span class="char-stat-tag" id="hud-char-stat">ST 100</span>
+          </div>
+          <div class="life-hex-box">
+            <span class="life-hex-title">TEAM LIFE</span>
+            <span class="life-hex-val" id="hud-team-life">100</span>
+          </div>
+        </div>
+
         <div id="judge-counter">
-          <div class="jc-row c-cbreak"><span>CRITICAL</span><span id="cnt-cbreak">0</span></div>
+          <div class="jc-row c-combo"><span>MAX COMBO</span><span id="cnt-maxcombo">0</span></div>
+          <div class="jc-row c-cbreak"><span>CRITICAL BREAK</span><span id="cnt-cbreak">0</span></div>
           <div class="jc-row c-break"><span>BREAK</span><span id="cnt-break">0</span></div>
           <div class="jc-row c-hit"><span>HIT</span><span id="cnt-hit">0</span></div>
           <div class="jc-row c-miss"><span>MISS</span><span id="cnt-miss">0</span></div>
-          <div class="jc-row c-bell"><span>BELL</span><span id="cnt-bell">0</span></div>
+          <div class="jc-row c-bell"><span>BELL</span><span id="cnt-bell">0/0</span></div>
+        </div>
+
+        <div class="hud-tech-plat">
+          <div class="tech-line">
+            <span style="font-size:8px; color:#94a3b8;">TECH</span>
+            <span id="score-tech-val">0000000</span>
+          </div>
+          <div class="plat-line">
+            <span style="font-size:8px; color:#94a3b8;">PLATINUM</span>
+            <span id="score-plat-val">0</span>
+          </div>
         </div>
       </div>
 
-      <div id="score-boards">
-        <div class="score-box" id="score-box-main">
-          SCORE <span class="score-val" id="score-main-val">0</span>
-        </div>
-        <div class="score-box" id="score-box-tech">
-          TECHNICAL SCORE <span class="score-val" id="score-tech-val">0000000</span>
+      <!-- 우상단 적 보스 패널 -->
+      <div id="hud-right">
+        <div class="boss-header-tag" id="hud-boss-title">SONG TITLE</div>
+        <div class="boss-status-row">
+          <div class="boss-hp-hex">
+            <span class="boss-hp-val" id="hud-boss-hp">100%</span>
+            <span class="boss-ok-count" id="hud-boss-ok">×0</span>
+          </div>
+          <div class="boss-card-mini">
+            <img id="hud-boss-img" src="" alt="" style="display:none;">
+            <span class="boss-lv-badge" id="hud-boss-lv">lv.1</span>
+          </div>
         </div>
       </div>
     </div>
+
     <canvas id="gameCanvas"></canvas>
   </div>
+
+  <!-- 하단 조작부 -->
   <div id="controller-area">
     <div id="slider-track">
       <div id="slider-knob">◀ ▶</div>
@@ -245,10 +386,22 @@
   const sliderTrack = document.getElementById('slider-track');
   const sliderKnob = document.getElementById('slider-knob');
   const buttons = document.querySelectorAll('.btn');
-  const speedDisplay = document.getElementById('speed-display');
-  
+
+  // HUD 요소
   const scoreMainVal = document.getElementById('score-main-val');
   const scoreTechVal = document.getElementById('score-tech-val');
+  const scorePlatVal = document.getElementById('score-plat-val');
+  const hudTeamLife = document.getElementById('hud-team-life');
+  const hudCharImg = document.getElementById('hud-char-img');
+  const hudCharStat = document.getElementById('hud-char-stat');
+
+  const hudBossTitle = document.getElementById('hud-boss-title');
+  const hudBossHp = document.getElementById('hud-boss-hp');
+  const hudBossOk = document.getElementById('hud-boss-ok');
+  const hudBossImg = document.getElementById('hud-boss-img');
+  const hudBossLv = document.getElementById('hud-boss-lv');
+
+  const cntMaxCombo = document.getElementById('cnt-maxcombo');
   const cntCBreak = document.getElementById('cnt-cbreak');
   const cntBreak = document.getElementById('cnt-break');
   const cntHit = document.getElementById('cnt-hit');
@@ -260,6 +413,7 @@
   const startSpeedVal = document.getElementById('start-speed-val');
   const startBtn = document.getElementById('start-btn');
   const restartBtn = document.getElementById('restart-btn');
+  const lobbyBtn = document.getElementById('lobby-btn');
 
   let gameStarted = false;
   let gameEnded = false;
@@ -285,8 +439,23 @@
   const SIDE_HIT_WINDOW_MS = 9 * FRAME_MS;
   const SIDE_EARLY_MISS_MS = 18 * FRAME_MS;
 
+  // 선택된 파일 상태
+  let selectedChartFile = 'chart1L1.json';
+  let selectedBossLevel = 1;
+  let selectedCharFile = 'char1.json';
+
+  // 캐릭터 & 보스 전투 데이터
+  let charData = { id: 1, name: 'Default', characterImageUrl: null, stat: 100, sfx: {} };
+  let chartData = { title: 'Demo Track', bpm: 140, loopTime: 12000, bossImageUrl: null, fieldEvents: [], notes: [] };
+
+  let bossMaxHp = 10000;
+  let bossCurrentHp = 10000;
+  let bossOverkillCount = 0;
+  let teamLife = 100;
+
   let generalScore = 0;
   let technicalScore = 0;
+  let platinumScore = 0;
   let combo = 0;
   let maxCombo = 0;
 
@@ -309,7 +478,6 @@
     return null;
   }
 
-  let chartData = { bpm: 140, loopTime: 12000, bossImageUrl: null, fieldEvents: [], notes: [] };
   let bossImgObj = null;
   let notes = [];
   let totalNoteCount = 0;
@@ -317,43 +485,70 @@
   let lastPatternCycle = -1;
   let chartLoaded = false;
 
-  async function loadChart() {
+  // 로비 목록 초기화 (index.json 우선 탐색 후 기본 폴백)
+  async function initLobbyLists() {
+    const chartListEl = document.getElementById('chart-select-list');
+    const charListEl = document.getElementById('char-select-list');
+
     try {
-      const res = await fetch('chart.json');
-      chartData = await res.json();
-      chartLoaded = true;
-      prepareChart();
-      if (chartData.bossImageUrl) {
-        bossImgObj = new Image();
-        bossImgObj.crossOrigin = 'anonymous';
-        bossImgObj.src = chartData.bossImageUrl;
+      const res = await fetch('index.json');
+      if (res.ok) {
+        const manifest = await res.json();
+        if (manifest.availableCharts && manifest.availableCharts.length > 0) {
+          chartListEl.innerHTML = '';
+          manifest.availableCharts.forEach((c, idx) => {
+            const match = c.filename.match(/^chart(\d+)L(\d+)\.json$/i);
+            const lv = c.level || (match ? Number(match[1]) : 1);
+            const div = document.createElement('div');
+            div.className = 'select-item' + (idx === 0 ? ' selected' : '');
+            div.dataset.file = c.filename;
+            div.dataset.lv = lv;
+            div.innerHTML = `<span>${c.title || c.filename}</span><span class="item-sub">BOSS Lv.${lv}</span>`;
+            chartListEl.appendChild(div);
+            if (idx === 0) {
+              selectedChartFile = c.filename;
+              selectedBossLevel = lv;
+            }
+          });
+        }
+        if (manifest.availableCharacters && manifest.availableCharacters.length > 0) {
+          charListEl.innerHTML = '';
+          manifest.availableCharacters.forEach((ch, idx) => {
+            const div = document.createElement('div');
+            div.className = 'select-item' + (idx === 0 ? ' selected' : '');
+            div.dataset.file = ch.filename;
+            div.innerHTML = `<span>${ch.name || ch.filename}</span><span class="item-sub">${ch.filename}</span>`;
+            charListEl.appendChild(div);
+            if (idx === 0) selectedCharFile = ch.filename;
+          });
+        }
       }
     } catch (e) {
-      console.error('채보 로드 실패:', e);
-      chartLoaded = true;
+      // index.json이 없을 경우 기본 항목 유지
     }
-  }
-  loadChart();
 
-  function prepareChart() {
-    if (!chartData.notes) return;
-    totalNoteCount = chartData.notes.length;
-    counts.totalBells = chartData.notes.filter(n => n.type === 'bell').length;
-  }
+    chartListEl.addEventListener('click', (e) => {
+      const item = e.target.closest('.select-item');
+      if (!item) return;
+      chartListEl.querySelectorAll('.select-item').forEach(el => el.classList.remove('selected'));
+      item.classList.add('selected');
+      selectedChartFile = item.dataset.file;
+      selectedBossLevel = Number(item.dataset.lv) || 1;
+    });
 
-  function updateTechnicalScore(addedTech) {
-    technicalScore = Math.min(1010000, technicalScore + addedTech);
-    scoreTechVal.textContent = Math.round(technicalScore).toString().padStart(7, '0');
+    charListEl.addEventListener('click', (e) => {
+      const item = e.target.closest('.select-item');
+      if (!item) return;
+      charListEl.querySelectorAll('.select-item').forEach(el => el.classList.remove('selected'));
+      item.classList.add('selected');
+      selectedCharFile = item.dataset.file;
+    });
   }
+  initLobbyLists();
 
-  function addGeneralScore(amt) {
-    generalScore += amt;
-    scoreMainVal.textContent = generalScore.toLocaleString();
-  }
-
+  // 시작창 배속 조절
   function updateSpeedUI() {
     startSpeedVal.textContent = `${noteSpeedMultiplier.toFixed(1)}x`;
-    speedDisplay.textContent = `${noteSpeedMultiplier.toFixed(1)}x`;
   }
   document.getElementById('modal-speed-down').addEventListener('click', () => {
     noteSpeedMultiplier = Math.max(0.5, Math.round((noteSpeedMultiplier - 0.1) * 10) / 10);
@@ -363,18 +558,103 @@
     noteSpeedMultiplier = Math.min(3.0, Math.round((noteSpeedMultiplier + 0.1) * 10) / 10);
     updateSpeedUI();
   });
-  document.getElementById('speed-down').addEventListener('pointerdown', (e) => {
-    e.stopPropagation();
-    noteSpeedMultiplier = Math.max(0.5, Math.round((noteSpeedMultiplier - 0.1) * 10) / 10);
-    updateSpeedUI();
-  });
-  document.getElementById('speed-up').addEventListener('pointerdown', (e) => {
-    e.stopPropagation();
-    noteSpeedMultiplier = Math.min(3.0, Math.round((noteSpeedMultiplier + 0.1) * 10) / 10);
-    updateSpeedUI();
-  });
 
-  function startGame() {
+  // 채보 & 캐릭터 데이터 로드
+  async function loadSelectedAssets() {
+    chartLoaded = false;
+    try {
+      const chartRes = await fetch(selectedChartFile);
+      if (chartRes.ok) {
+        chartData = await chartRes.json();
+      }
+    } catch (e) {
+      console.warn('채보 로드 fallback:', e);
+    }
+
+    try {
+      const charRes = await fetch(selectedCharFile);
+      if (charRes.ok) {
+        charData = await charRes.json();
+      }
+    } catch (e) {
+      console.warn('캐릭터 로드 fallback:', e);
+    }
+
+    const match = selectedChartFile.match(/^chart(\d+)L(\d+)\.json$/i);
+    if (match) selectedBossLevel = Number(match[1]);
+
+    // 보스 & 캐릭터 HUD 반영
+    bossMaxHp = 10000 * selectedBossLevel;
+    bossCurrentHp = bossMaxHp;
+    bossOverkillCount = 0;
+    teamLife = 100;
+
+    hudBossTitle.textContent = chartData.title || selectedChartFile.replace('.json', '');
+    hudBossLv.textContent = `lv.${selectedBossLevel}`;
+    hudCharStat.textContent = `ST ${charData.stat || 100}`;
+    updateCombatHUD();
+
+    if (charData.characterImageUrl) {
+      hudCharImg.src = charData.characterImageUrl;
+      hudCharImg.style.display = 'block';
+    } else {
+      hudCharImg.style.display = 'none';
+    }
+
+    if (chartData.bossImageUrl) {
+      bossImgObj = new Image();
+      bossImgObj.crossOrigin = 'anonymous';
+      bossImgObj.src = chartData.bossImageUrl;
+      hudBossImg.src = chartData.bossImageUrl;
+      hudBossImg.style.display = 'block';
+    } else {
+      bossImgObj = null;
+      hudBossImg.style.display = 'none';
+    }
+
+    totalNoteCount = (chartData.notes && chartData.notes.length) ? chartData.notes.length : 1;
+    counts.totalBells = chartData.notes ? chartData.notes.filter(n => n.type === 'bell').length : 0;
+    chartLoaded = true;
+  }
+
+  function updateCombatHUD() {
+    hudTeamLife.textContent = Math.max(0, Math.round(teamLife));
+    const hpPercent = Math.max(0, Math.ceil((bossCurrentHp / bossMaxHp) * 100));
+    hudBossHp.textContent = `${hpPercent}%`;
+    hudBossOk.textContent = `×${bossOverkillCount}`;
+  }
+
+  function applyAttackAndGeneralScore(judgeMultiplier) {
+    const stat = Number(charData.stat) || 100;
+    const noteDamage = (stat / (totalNoteCount || 1)) * judgeMultiplier * 100;
+
+    bossCurrentHp -= noteDamage;
+    while (bossCurrentHp <= 0) {
+      bossOverkillCount++;
+      bossCurrentHp += bossMaxHp;
+    }
+
+    const overkillBonus = bossOverkillCount > 0 ? 1.5 : 1.0;
+    const addedGeneral = Math.round(noteDamage * (1 + combo / 100) * overkillBonus);
+
+    generalScore += addedGeneral;
+    scoreMainVal.textContent = generalScore.toString().padStart(9, '0');
+    updateCombatHUD();
+  }
+
+  function updateTechnicalScore(addedTech) {
+    technicalScore = Math.min(1010000, technicalScore + addedTech);
+    scoreTechVal.textContent = Math.round(technicalScore).toString().padStart(7, '0');
+  }
+
+  function updatePlatinumScore() {
+    const missedBells = Math.max(0, counts.totalBells - counts.bell);
+    platinumScore = (counts.cbreak * 3) - (counts.damage * 2) - missedBells;
+    scorePlatVal.textContent = platinumScore;
+  }
+
+  async function startGame() {
+    await loadSelectedAssets();
     startScreen.style.display = 'none';
     resultScreen.style.display = 'none';
     gameStarted = true;
@@ -382,15 +662,28 @@
     songStartTime = performance.now();
     notes = [];
     lastPatternCycle = -1;
-    generalScore = 0; technicalScore = 0; combo = 0; maxCombo = 0;
+
+    generalScore = 0; technicalScore = 0; platinumScore = 0;
+    combo = 0; maxCombo = 0;
     counts = { cbreak: 0, break: 0, hit: 0, miss: 0, bell: 0, totalBells: counts.totalBells, damage: 0 };
-    scoreMainVal.textContent = '0';
+
+    scoreMainVal.textContent = '000000000';
     scoreTechVal.textContent = '0000000';
-    cntCBreak.textContent = '0'; cntBreak.textContent = '0'; cntHit.textContent = '0'; cntMiss.textContent = '0'; cntBell.textContent = '0';
+    scorePlatVal.textContent = '0';
+    cntMaxCombo.textContent = '0';
+    cntCBreak.textContent = '0';
+    cntBreak.textContent = '0';
+    cntHit.textContent = '0';
+    cntMiss.textContent = '0';
+    cntBell.textContent = `0/${counts.totalBells}`;
   }
 
   startBtn.addEventListener('click', startGame);
   restartBtn.addEventListener('click', startGame);
+  lobbyBtn.addEventListener('click', () => {
+    resultScreen.style.display = 'none';
+    startScreen.style.display = 'flex';
+  });
 
   function triggerResultScreen() {
     gameEnded = true;
@@ -411,10 +704,9 @@
     else if (ts >= 400000) grade = 'C';
     else grade = 'D';
 
-    const missedBells = Math.max(0, counts.totalBells - counts.bell);
-    const platScore = (counts.cbreak * 2) + counts.cbreak - (counts.damage * 2) - missedBells;
+    updatePlatinumScore();
     const maxPlat = (totalNoteCount * 3) || 1;
-    const platRatio = platScore / maxPlat;
+    const platRatio = platinumScore / maxPlat;
 
     let starsCount = 0;
     if (platRatio >= 0.98) starsCount = 5;
@@ -428,7 +720,6 @@
     const starElem = document.getElementById('res-stars');
     starElem.textContent = starStr;
 
-    // 플래티넘 스코어 99% 이상인 경우 무지개빛 별 효과 적용
     if (platRatio >= 0.99) {
       starElem.className = 'result-stars rainbow-stars';
     } else {
@@ -436,14 +727,16 @@
     }
 
     let badges = [];
-    if (ts === 1010000 && counts.hit === 0 && counts.miss === 0) badges.push('AB+');
+    if (Math.round(ts) === 1010000 && counts.hit === 0 && counts.miss === 0) badges.push('AB+');
     if (counts.hit === 0 && counts.miss === 0) badges.push('AB');
     else if (counts.miss === 0) badges.push('FC');
     if (counts.bell > 0 && counts.bell === counts.totalBells) badges.push('FB');
     if (counts.damage === 0) badges.push('ND');
 
     document.getElementById('res-grade').textContent = grade;
+    document.getElementById('res-general').textContent = generalScore.toLocaleString();
     document.getElementById('res-tech').textContent = Math.round(ts).toLocaleString();
+    document.getElementById('res-plat').textContent = platinumScore;
     document.getElementById('res-combo').textContent = maxCombo;
     document.getElementById('res-cbreak').textContent = counts.cbreak;
     document.getElementById('res-break').textContent = counts.break;
@@ -502,16 +795,14 @@
 
   function getLaneXAtTime(laneIndex, targetTime, y) {
     const m = getTrackMetricsAt(y, targetTime);
-    // 가이드(레일) 안쪽 활성 영역 내에서 레인 위치 계산
-    const laneRatio = FIXED_LANE_RATIOS[laneIndex];
-    // 전체 폭 기준이 아니라 activeWidth(클립된 영역) 내부에서 균등 배분하도록 보정
     return m.wallLeft + m.activeWidth * (laneIndex / 5.0);
   }
 
   function spawnChartNotes(now) {
     if (!chartLoaded || !gameStarted || gameEnded) return;
     const elapsed = now - songStartTime;
-    if (elapsed > 24000) {
+    const totalDuration = chartData.totalDuration || (chartData.loopTime * 2);
+    if (elapsed > totalDuration) {
       triggerResultScreen();
       return;
     }
@@ -520,6 +811,7 @@
     if (currentCycle > lastPatternCycle) {
       lastPatternCycle = currentCycle;
       const cycleOffset = songStartTime + (currentCycle * chartData.loopTime);
+      if (!chartData.notes) return;
       chartData.notes.forEach(p => {
         notes.push({
           targetTime: cycleOffset + p.time,
@@ -576,14 +868,21 @@
     return charX < bottomM.wallLeft || charX > bottomM.wallRight;
   }
 
-  function triggerMissAt(x, y) {
-    combo = 0;
-    counts.miss++;
+  function triggerDamage(x, y, isNoteMiss = true) {
+    if (isNoteMiss) {
+      combo = 0;
+      counts.miss++;
+      cntMiss.textContent = counts.miss;
+    }
     counts.damage++;
-    cntMiss.textContent = counts.miss;
+    const enemyDmg = 10 + (selectedBossLevel * 5);
+    teamLife = Math.max(0, teamLife - enemyDmg);
+    updateCombatHUD();
+    updatePlatinumScore();
+
     judgePopups.push({
       x: x, y: y - 52,
-      lines: ['MISS'], color: '#888888',
+      lines: [isNoteMiss ? 'MISS' : 'DAMAGE'], color: '#ff4757',
       combo: null, alpha: 1.0, scale: 1.0
     });
   }
@@ -591,7 +890,6 @@
   function checkFlickJudge(moveDir) {
     const now = performance.now();
     if (isCharacterDerailed(now)) return;
-
     const judgeY = canvas.height * 0.90;
 
     for (let note of notes) {
@@ -617,48 +915,60 @@
     let textLines = [];
     let color = '#fff';
     let techAdd = 0;
-    let generalAdd = 1000;
+    let judgeMult = 1.0;
 
-    const isBarrier = (noteType === 'bell' || noteType === 'redRing' || noteType === 'laser');
-    const maxNotePoints = isBarrier ? (60000 / (totalNoteCount || 1)) : (950000 / (totalNoteCount || 1));
+    const isBell = (noteType === 'bell');
+    const regularNotes = Math.max(1, totalNoteCount - counts.totalBells);
+    const maxNotePoints = isBell ? (60000 / Math.max(1, counts.totalBells)) : (950000 / regularNotes);
 
     if (minDiff <= 1 * FRAME_MS) {
       textLines = ['PLATINUM', 'BREAK'];
       color = '#00ffcc';
       techAdd = maxNotePoints * 1.0;
+      judgeMult = 1.0;
       counts.cbreak++;
       combo++;
     } else if (minDiff <= 2 * FRAME_MS) {
       textLines = ['CRITICAL', 'BREAK'];
       color = '#ffd700';
       techAdd = maxNotePoints * 1.0;
+      judgeMult = 1.0;
       counts.cbreak++;
       combo++;
     } else if (minDiff <= 4 * FRAME_MS) {
       textLines = ['BREAK'];
       color = '#ff4757';
       techAdd = maxNotePoints * 0.8;
+      judgeMult = 0.8;
       counts.break++;
       combo++;
     } else {
       textLines = ['HIT'];
       color = '#2ed573';
       techAdd = maxNotePoints * 0.5;
+      judgeMult = 0.5;
       counts.hit++;
       combo++;
     }
 
-    if (combo > maxCombo) maxCombo = combo;
-    if (noteType === 'bell') counts.bell++;
-    if (noteType === 'laser') counts.damage++;
+    if (combo > maxCombo) {
+      maxCombo = combo;
+      cntMaxCombo.textContent = maxCombo;
+    }
+    if (isBell) {
+      counts.bell++;
+      teamLife = Math.min(100, teamLife + 2);
+      updateCombatHUD();
+    }
 
     cntCBreak.textContent = counts.cbreak;
     cntBreak.textContent = counts.break;
     cntHit.textContent = counts.hit;
-    cntBell.textContent = counts.bell;
+    cntBell.textContent = `${counts.bell}/${counts.totalBells}`;
 
     updateTechnicalScore(techAdd);
-    addGeneralScore(generalAdd + (combo * 10));
+    updatePlatinumScore();
+    applyAttackAndGeneralScore(judgeMult);
 
     judgePopups.push({
       x: x, y: y - 52,
@@ -726,7 +1036,7 @@
         const missedNote = earlyMissCandidates[0].note;
         missedNote.missed = true;
         const wallX = targetSide === 'left' ? bottomM.wallLeft - 14 : bottomM.wallRight + 14;
-        triggerMissAt(wallX, judgeY - 12);
+        triggerDamage(wallX, judgeY - 12, true);
       }
       return;
     }
@@ -753,7 +1063,7 @@
     let earlyMissCandidates = [];
 
     for (let note of notes) {
-      if ((note.type === 'tap' || note.type === 'hold' || note.type === 'bell' || note.type === 'redRing') && !note.hit && !note.missed && targetLanes.includes(note.lane)) {
+      if ((note.type === 'tap' || note.type === 'hold') && !note.hit && !note.missed && targetLanes.includes(note.lane)) {
         const diff = Math.abs(now - note.targetTime);
         if (diff <= HIT_WINDOW_MS) {
           validCandidates.push({ note, diff });
@@ -782,7 +1092,7 @@
       const missedNote = earlyMissCandidates[0].note;
       missedNote.missed = true;
       const laneX = getLaneXAtTime(missedNote.lane, missedNote.targetTime, judgeY);
-      triggerMissAt(laneX, judgeY);
+      triggerDamage(laneX, judgeY, true);
     } else {
       targetLanes.forEach(l => laneFlash[l] = Math.max(laneFlash[l], 0.35));
     }
@@ -802,9 +1112,12 @@
           note.holding = false;
           note.completed = true;
           updateTechnicalScore(10000 / (totalNoteCount || 1));
-          addGeneralScore(800);
+          applyAttackAndGeneralScore(1.0);
           combo++;
-          if (combo > maxCombo) maxCombo = combo;
+          if (combo > maxCombo) {
+            maxCombo = combo;
+            cntMaxCombo.textContent = maxCombo;
+          }
 
           const endX = note.type === 'sideHold'
             ? (note.side === 'left' ? bottomM.wallLeft - 14 : bottomM.wallRight + 14)
@@ -868,7 +1181,7 @@
 
   function getHoldRatioAtTime(note, t) {
     if (!note.waypoints || note.waypoints.length === 0) {
-      return FIXED_LANE_RATIOS[note.lane];
+      return note.lane / 5.0;
     }
     const elapsed = Math.max(0, Math.min(note.holdDuration, t - note.targetTime));
     for (let i = 0; i < note.waypoints.length - 1; i++) {
@@ -876,12 +1189,12 @@
       const w2 = note.waypoints[i + 1];
       if (elapsed >= w1.offset && elapsed <= w2.offset) {
         const r = (elapsed - w1.offset) / (w2.offset - w1.offset);
-        const r1 = FIXED_LANE_RATIOS[w1.lane];
-        const r2 = FIXED_LANE_RATIOS[w2.lane];
+        const r1 = w1.lane / 5.0;
+        const r2 = w2.lane / 5.0;
         return r1 + (r2 - r1) * r;
       }
     }
-    return FIXED_LANE_RATIOS[note.waypoints[note.waypoints.length - 1].lane];
+    return note.waypoints[note.waypoints.length - 1].lane / 5.0;
   }
 
   function drawHoldRibbon(pts, noteColor, isHolding) {
@@ -960,7 +1273,7 @@
     ctx.restore();
   }
 
-  function drawFlickNoteShape(centerX, baseY, width, dir) {
+  function drawFlickNoteShape(centerX, baseY, width) {
     ctx.save();
     const barH = 12;
     ctx.shadowColor = '#f39c12';
@@ -1051,6 +1364,7 @@
     const judgeY = canvas.height * 0.90;
     const travelDuration = (BASE_NOTE_TRAVEL_TIME * 1000) / noteSpeedMultiplier;
     const bottomM = getTrackMetricsAt(judgeY, now);
+    const charX = bottomM.fullLeft + bottomM.fullWidth * playerX;
 
     const trackSteps = 36;
     let trackSlices = [];
@@ -1061,7 +1375,6 @@
       trackSlices.push({ y: py, m: m });
     }
 
-    // 트랙 배경
     ctx.fillStyle = 'rgba(10, 10, 22, 0.94)';
     ctx.beginPath();
     ctx.moveTo(trackSlices[0].m.wallLeft, trackSlices[0].y);
@@ -1078,9 +1391,7 @@
     ctx.closePath();
     ctx.clip();
 
-    // ★ 웨이포인트(꺾이는 경로)를 반영한 가이드 라인 렌더링
     for (let i = 0; i < 6; i++) {
-      const ratio = FIXED_LANE_RATIOS[i];
       ctx.strokeStyle = ALL_LANE_COLORS[i];
       ctx.lineWidth = 2 + laneFlash[i] * 3;
       ctx.globalAlpha = 0.55 + laneFlash[i] * 0.45;
@@ -1097,7 +1408,6 @@
     }
     ctx.globalAlpha = 1.0;
 
-    // 노트 렌더링 (가이드 라인 뒤쪽에 정확히 배치)
     for (let i = notes.length - 1; i >= 0; i--) {
       const note = notes[i];
 
@@ -1105,16 +1415,16 @@
         if (now - note.lastTickTime >= 150) {
           note.lastTickTime = now;
           updateTechnicalScore(2000 / (totalNoteCount || 1));
-          addGeneralScore(200);
+          applyAttackAndGeneralScore(0.2);
         }
 
         if (note.type === 'hold') {
           const curRatio = getHoldRatioAtTime(note, now);
-          const nearestLane = Math.round(curRatio * 7) - 1;
+          const nearestLane = Math.round(curRatio * 5);
           if (nearestLane >= 0 && nearestLane < 6) laneFlash[nearestLane] = 0.8;
           if (Math.random() < 0.35) {
             const curM = getTrackMetricsAt(judgeY, now);
-            spawnHitEffectAt(curM.wallLeft + curM.activeWidth * (note.lane / 5.0), judgeY, ALL_LANE_COLORS[note.lane]);
+            spawnHitEffectAt(curM.wallLeft + curM.activeWidth * curRatio, judgeY, ALL_LANE_COLORS[note.lane]);
           }
         } else {
           wallFlash[note.side] = 0.8;
@@ -1124,9 +1434,12 @@
           note.holding = false;
           note.completed = true;
           updateTechnicalScore(10000 / (totalNoteCount || 1));
-          addGeneralScore(800);
+          applyAttackAndGeneralScore(1.0);
           combo++;
-          if (combo > maxCombo) maxCombo = combo;
+          if (combo > maxCombo) {
+            maxCombo = combo;
+            cntMaxCombo.textContent = maxCombo;
+          }
         }
       }
 
@@ -1137,6 +1450,25 @@
 
       const timeLeft = note.targetTime - now;
 
+      // 벨 & 레드링 캐릭터 충돌 판정
+      if (note.type === 'bell' || note.type === 'redRing') {
+        const currentY = getNoteY(note.targetTime, now, travelDuration, topY, judgeY);
+        const m = getTrackMetricsAt(currentY, note.targetTime);
+        const noteX = m.wallLeft + m.activeWidth * (note.lane / 5.0);
+        if (Math.abs(currentY - judgeY) < 22 && Math.abs(charX - noteX) < 28 && !note.hit) {
+          note.hit = true;
+          if (note.type === 'bell') {
+            spawnHitEffectAt(noteX, judgeY, '#f1c40f');
+            processJudgeAt(noteX, judgeY, 0, 'bell');
+          } else {
+            spawnHitEffectAt(noteX, judgeY, '#ff00ff');
+            triggerDamage(noteX, judgeY, false);
+          }
+          notes.splice(i, 1);
+          continue;
+        }
+      }
+
       if (note.type === 'laser') {
         const laserElapsed = now - note.targetTime;
         if (laserElapsed >= note.laserDuration) {
@@ -1146,11 +1478,10 @@
         if (laserElapsed >= 0 && laserElapsed <= note.laserDuration) {
           const m = getTrackMetricsAt(judgeY, now);
           const laneX = m.wallLeft + m.activeWidth * (note.lane / 5.0);
-          const charX = m.fullLeft + m.fullWidth * playerX;
           if (Math.abs(charX - laneX) < m.fullWidth / 12) {
             if (!note.hit) {
               note.hit = true;
-              triggerMissAt(laneX, judgeY);
+              triggerDamage(laneX, judgeY, false);
             }
           }
         }
@@ -1159,7 +1490,7 @@
           const holdEndTime = note.targetTime + note.holdDuration;
           if (now > holdEndTime + 140) {
             note.missed = true;
-            triggerMissAt(bottomM.fullLeft, judgeY);
+            triggerDamage(bottomM.fullLeft, judgeY, true);
             notes.splice(i, 1);
             continue;
           }
@@ -1167,7 +1498,11 @@
           const lateWindow = note.type === 'side' ? SIDE_HIT_WINDOW_MS : HIT_WINDOW_MS;
           if (timeLeft < -lateWindow) {
             note.missed = true;
-            triggerMissAt(bottomM.fullLeft, judgeY);
+            if (note.type === 'bell') {
+              updatePlatinumScore();
+            } else if (note.type !== 'redRing') {
+              triggerDamage(bottomM.fullLeft, judgeY, true);
+            }
             notes.splice(i, 1);
             continue;
           }
@@ -1190,8 +1525,7 @@
             const py = (sampleT <= now) ? judgeY : getNoteY(sampleT, now, travelDuration, topY, judgeY);
             const pm = getTrackMetricsAt(py, sampleT);
             const pRatio = getHoldRatioAtTime(note, sampleT);
-            // 꺾이는 가이드 내에서의 위치 반영
-            pts.push({ x: pm.wallLeft + pm.activeWidth * (pRatio), y: py, w: pm.fullWidth / 9.5 });
+            pts.push({ x: pm.wallLeft + pm.activeWidth * pRatio, y: py, w: pm.fullWidth / 9.5 });
           }
           drawHoldRibbon(pts, noteColor, note.holding);
         }
@@ -1240,7 +1574,6 @@
 
     ctx.restore();
 
-    // 벽 라인 및 판정선
     ctx.save();
     ctx.lineJoin = 'round';
     ctx.strokeStyle = wallFlash.left > 0 ? '#ffffff' : '#9b59b6';
@@ -1266,7 +1599,6 @@
     ctx.moveTo(bottomM.wallLeft, judgeY); ctx.lineTo(bottomM.wallRight, judgeY);
     ctx.stroke();
 
-    // 사이드 및 플릭 노트
     for (let i = 0; i < notes.length; i++) {
       const note = notes[i];
       if (note.completed || note.missed || (note.type !== 'sideHold' && note.hit)) continue;
@@ -1311,27 +1643,25 @@
       else if (note.type === 'flick') {
         const currentY = getNoteY(note.targetTime, now, travelDuration, topY, judgeY);
         const m = getTrackMetricsAt(currentY, note.targetTime);
-        drawFlickNoteShape(m.wallLeft + m.activeWidth * (note.lane / 5.0), currentY - 4, m.fullWidth / 5.2, note.dir);
+        drawFlickNoteShape(m.wallLeft + m.activeWidth * (note.lane / 5.0), currentY - 4, m.fullWidth / 5.2);
       }
     }
 
-    // 8자 운동 보스 이미지
     if (bossImgObj && bossImgObj.complete) {
       ctx.save();
       const t = now * 0.0015;
       const centerX = canvas.width / 2;
-      const centerY = 50;
-      const xRange = canvas.width * 0.28;
-      const yRange = 18;
+      const centerY = 64;
+      const xRange = canvas.width * 0.24;
+      const yRange = 16;
 
       const bossX = centerX + xRange * Math.sin(t);
       const bossY = centerY + yRange * Math.sin(2 * t);
 
-      ctx.drawImage(bossImgObj, bossX - 35, bossY - 35, 70, 70);
+      ctx.drawImage(bossImgObj, bossX - 32, bossY - 32, 64, 64);
       ctx.restore();
     }
 
-    // 타격 이펙트 및 판정 텍스트
     for (let i = hitEffects.length - 1; i >= 0; i--) {
       let ef = hitEffects[i];
       ctx.save();
@@ -1350,19 +1680,18 @@
       ctx.globalAlpha = p.alpha;
       ctx.textAlign = 'center';
       ctx.fillStyle = p.color;
-      ctx.font = `bold 16px sans-serif`;
-      ctx.fillText(p.lines[0], p.x, p.y);
+      ctx.font = `bold 15px sans-serif`;
+      ctx.fillText(p.lines.join(' '), p.x, p.y);
       if (p.combo !== null) {
         ctx.fillStyle = '#ffffff';
         ctx.font = `bold 20px sans-serif`;
-        ctx.fillText(p.combo, p.x, p.y + 24);
+        ctx.fillText(p.combo, p.x, p.y + 23);
       }
       ctx.restore();
       p.alpha -= 0.025; p.y -= 0.5;
       if (p.alpha <= 0) judgePopups.splice(i, 1);
     }
 
-    const charX = bottomM.fullLeft + bottomM.fullWidth * playerX;
     const derailed = isCharacterDerailed(now);
     ctx.fillStyle = derailed ? '#ff4757' : '#00ffcc';
     ctx.beginPath(); ctx.arc(charX, judgeY, 16, 0, Math.PI * 2); ctx.fill();
