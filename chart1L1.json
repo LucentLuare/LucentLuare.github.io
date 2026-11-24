@@ -1,0 +1,227 @@
+{
+  "bpm": 140,
+  "loopTime": 12000,
+  "bossImageUrl": "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200",
+  "youtubeUrl": "",
+  "fieldEvents": [
+    {
+      "t": 0,
+      "clipL": 0,
+      "clipR": 1
+    },
+    {
+      "t": 6428.571428571428,
+      "clipL": 0.6807010997425426,
+      "clipR": 1
+    },
+    {
+      "t": 8250,
+      "clipL": 0.7144622802734375,
+      "clipR": 1
+    },
+    {
+      "t": 8464.285714285714,
+      "clipL": 0.30918682368114736,
+      "clipR": 0.5609850437151462
+    },
+    {
+      "t": 9321.42857142857,
+      "clipL": 0.15275976007634942,
+      "clipR": 0.37613664106889205
+    },
+    {
+      "t": 10392.857142857143,
+      "clipL": 0.6725867531516335,
+      "clipR": 0.7466913396661932
+    },
+    {
+      "t": 10446.42857142857,
+      "clipL": 0,
+      "clipR": 1
+    },
+    {
+      "t": 12000,
+      "clipL": 0,
+      "clipR": 1
+    }
+  ],
+  "guides": [
+    {
+      "id": 1795502359358.9382,
+      "color": "red",
+      "startTime": 3589.285714285714,
+      "startPos": 0,
+      "endTime": 4589.285714285714,
+      "endPos": 0
+    },
+    {
+      "id": 1795502360288.5583,
+      "color": "red",
+      "startTime": 4607.142857142857,
+      "startPos": 0.01,
+      "endTime": 4660.714285714285,
+      "endPos": 0.53
+    },
+    {
+      "id": 1795502361425.3264,
+      "color": "red",
+      "startTime": 4660.714285714285,
+      "startPos": 0.54,
+      "endTime": 4714.285714285714,
+      "endPos": 0.04
+    },
+    {
+      "id": 1795502362664.5208,
+      "color": "red",
+      "startTime": 2946.428571428571,
+      "startPos": 0.11,
+      "endTime": 2999.9999999999995,
+      "endPos": 0.46
+    },
+    {
+      "id": 1795502363643.64,
+      "color": "red",
+      "startTime": 2142.8571428571427,
+      "startPos": 0.37,
+      "endTime": 3482.142857142857,
+      "endPos": 0.24
+    },
+    {
+      "id": 1795502365661.9973,
+      "color": "red",
+      "startTime": 1553.5714285714284,
+      "startPos": 0.17,
+      "endTime": 4607.142857142857,
+      "endPos": 0.51
+    },
+    {
+      "id": 1795502366419.979,
+      "color": "red",
+      "startTime": 535.7142857142857,
+      "startPos": 0.31,
+      "endTime": 2089.285714285714,
+      "endPos": 0.29
+    },
+    {
+      "id": 1795502437029.0276,
+      "color": "blue",
+      "startTime": 1285.7142857142858,
+      "startPos": 0.79,
+      "endTime": 7821.428571428572,
+      "endPos": 0.45
+    },
+    {
+      "id": 1795502492330.761,
+      "color": "green",
+      "startTime": 8196.42857142857,
+      "startPos": 0.21,
+      "endTime": 11464.285714285714,
+      "endPos": 0.86
+    }
+  ],
+  "notes": [
+    {
+      "time": 482,
+      "color": "magenta",
+      "type": "redRing",
+      "lane": 3
+    },
+    {
+      "time": 1500,
+      "color": "red",
+      "type": "tap",
+      "lane": 1
+    },
+    {
+      "time": 2143,
+      "color": "blue",
+      "type": "tap",
+      "lane": 4
+    },
+    {
+      "time": 2893,
+      "color": "purple",
+      "type": "side",
+      "side": "right"
+    },
+    {
+      "time": 3054,
+      "color": "magenta",
+      "type": "redRing",
+      "lane": 3
+    },
+    {
+      "time": 3268,
+      "color": "red",
+      "type": "bell",
+      "lane": 1
+    },
+    {
+      "time": 3750,
+      "color": "red",
+      "type": "hold",
+      "lane": 2,
+      "holdDuration": 857
+    },
+    {
+      "time": 4018,
+      "color": "purple",
+      "type": "side",
+      "side": "right"
+    },
+    {
+      "time": 4018,
+      "color": "blue",
+      "type": "tap",
+      "lane": 3
+    },
+    {
+      "time": 4554,
+      "color": "red",
+      "type": "bell",
+      "lane": 1
+    },
+    {
+      "time": 4768,
+      "color": "purple",
+      "type": "side",
+      "side": "right"
+    },
+    {
+      "time": 5946,
+      "color": "blue",
+      "type": "tap",
+      "lane": 3
+    },
+    {
+      "time": 6482,
+      "color": "purple",
+      "type": "side",
+      "side": "right"
+    },
+    {
+      "time": 6857,
+      "color": "magenta",
+      "type": "redRing",
+      "lane": 3
+    },
+    {
+      "time": 7125,
+      "color": "red",
+      "type": "bell",
+      "lane": 2
+    },
+    {
+      "time": 9000,
+      "color": "green",
+      "type": "tap",
+      "lane": 2
+    },
+    {
+      "time": 10875,
+      "color": "green",
+      "type": "tap",
+      "lane": 4
+    }
+  ]
+}
